@@ -147,6 +147,18 @@ type SecondaryMode =
   | { type: "inverted" }
   | { type: "block"; defIdx: number };
 
+// ─── Sashing ──────────────────────────────────────────────────────────────────
+//
+// Sashing strips run at interior block boundaries — every tileW-th column and/or
+// every tileH-th row (excluding the outer edges). The strip is 1 square wide,
+// the same cut size as the block squares. Color is either cream (neutral) or the
+// auto-derived contrast of the primary free color.
+
+interface SashingConfig {
+  layout: "none" | "columns" | "rows" | "both";
+  color:  "neutral" | "contrast";
+}
+
 // ─── Block type ───────────────────────────────────────────────────────────────
 
 interface BlockDef {
@@ -169,6 +181,7 @@ interface BlockDef {
 function generatePattern(
   primary: BlockDef,
   secondary: SecondaryMode,
+  sashing: SashingConfig,
   cols: number, rows: number,
   freeColors: Record<string, string>,
   scrappy: boolean, lowVolume: boolean,
@@ -181,9 +194,27 @@ function generatePattern(
   const secondaryDef     = secondary.type === "block" ? blockDefs[secondary.defIdx] : null;
   const secondaryRes     = secondaryDef ? resolveSlots(secondaryDef.colorRules, freeColors) : null;
 
+  // Pre-compute sashing base color (null = no sashing)
+  const sashBase = sashing.layout !== "none"
+    ? (sashing.color === "neutral" ? NEUTRAL : contrastFill)
+    : null;
+
   return Array.from({ length: cols * rows }, (_, i) => {
     const row = Math.floor(i / cols);
     const col = i % cols;
+
+    // Sashing — overrides block color at interior block boundaries
+    if (sashBase !== null) {
+      const onSashCol = (sashing.layout === "columns" || sashing.layout === "both")
+        && col > 0 && col % primary.tileW === 0;
+      const onSashRow = (sashing.layout === "rows" || sashing.layout === "both")
+        && row > 0 && row % primary.tileH === 0;
+      if (onSashCol || onSashRow) {
+        if (sashing.color === "neutral"  && lowVolume) return lowVolumeNudge(sashBase, i*11+col*17+row*23);
+        if (sashing.color === "contrast" && scrappy)   return scrappyNudge(sashBase,   i*7+col*13+row*31);
+        return sashBase;
+      }
+    }
 
     // Is this square in a primary or secondary block position?
     const blockCol = Math.floor(col / primary.tileW);
@@ -364,6 +395,9 @@ export default function StudioPage() {
   // ── Secondary block ──────────────────────────────────────────────────────
   const [secondaryMode, setSecondaryMode] = useState<SecondaryMode>({ type: "none" });
 
+  // ── Sashing ───────────────────────────────────────────────────────────────
+  const [sashing, setSashing] = useState<SashingConfig>({ layout: "none", color: "neutral" });
+
   // ── Grid ─────────────────────────────────────────────────────────────────
   const [activeGridIdx, setActiveGridIdx]   = useState(1);
   const [isCustomGrid, setIsCustomGrid]     = useState(false);
@@ -411,6 +445,7 @@ export default function StudioPage() {
       cols: number,
       rows: number,
       secMode: SecondaryMode,
+      sashingCfg: SashingConfig,
       isScrappy: boolean,
       isLowVolume: boolean,
       animate = true
@@ -426,7 +461,7 @@ export default function StudioPage() {
         def.freeSlots.forEach((slot) => {
           colors[slot] = palette.colors[slot] ?? palette.colors.A ?? "#888888";
         });
-        setGrid(generatePattern(def, secMode, cols, rows, colors, isScrappy, isLowVolume, BLOCK_DEFS));
+        setGrid(generatePattern(def, secMode, sashingCfg, cols, rows, colors, isScrappy, isLowVolume, BLOCK_DEFS));
         setIsTransitioning(false);
       }, animate ? 180 : 0);
     },
@@ -435,14 +470,14 @@ export default function StudioPage() {
 
   useEffect(() => {
     const { cols, rows } = GRID_PRESETS[1];
-    buildGrid(0, 0, cols, rows, { type: "none" }, false, false, false);
+    buildGrid(0, 0, cols, rows, { type: "none" }, { layout: "none", color: "neutral" }, false, false, false);
   }, [buildGrid]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleGenerate = () => {
     const nextPalette = (activePaletteIdx + 1) % PALETTES.length;
     setActivePaletteIdx(nextPalette);
-    buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, secondaryMode, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
   const handleBlockChange = (idx: number) => {
@@ -461,12 +496,12 @@ export default function StudioPage() {
         setSecondaryMode(newSec);
       }
     }
-    buildGrid(idx, activePaletteIdx, activeCols, activeRows, newSec, scrappy, lowVolume);
+    buildGrid(idx, activePaletteIdx, activeCols, activeRows, newSec, sashing, scrappy, lowVolume);
   };
 
   const handlePaletteChange = (idx: number) => {
     setActivePaletteIdx(idx);
-    buildGrid(activeBlockIdx, idx, activeCols, activeRows, secondaryMode, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, idx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
   const handleSecondaryMode = (modeType: SecondaryMode["type"]) => {
@@ -478,26 +513,40 @@ export default function StudioPage() {
       newSec = { type: modeType };
     }
     setSecondaryMode(newSec);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, sashing, scrappy, lowVolume);
   };
 
   const handleSecondaryBlockSelect = (defIdx: number) => {
     const newSec: SecondaryMode = { type: "block", defIdx };
     setSecondaryMode(newSec);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, sashing, scrappy, lowVolume);
+  };
+
+  const handleSashingLayout = (layout: SashingConfig["layout"]) => {
+    const next: SashingConfig = { ...sashing, layout };
+    setSashing(next);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, next, scrappy, lowVolume);
+  };
+
+  const handleSashingColor = (color: SashingConfig["color"]) => {
+    const next: SashingConfig = { ...sashing, color };
+    setSashing(next);
+    if (sashing.layout !== "none") {
+      buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, next, scrappy, lowVolume);
+    }
   };
 
   const handleGridPreset = (idx: number) => {
     setActiveGridIdx(idx);
     setIsCustomGrid(false);
     const { cols, rows } = GRID_PRESETS[idx];
-    buildGrid(activeBlockIdx, activePaletteIdx, cols, rows, secondaryMode, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, cols, rows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
   const handleCustomGridSelect = () => {
     if (!isCustomGrid) {
       setIsCustomGrid(true);
-      buildGrid(activeBlockIdx, activePaletteIdx, customCols, customRows, secondaryMode, scrappy, lowVolume);
+      buildGrid(activeBlockIdx, activePaletteIdx, customCols, customRows, secondaryMode, sashing, scrappy, lowVolume);
     }
   };
 
@@ -505,14 +554,14 @@ export default function StudioPage() {
     const v = Math.max(3, Math.min(30, val));
     setCustomCols(v);
     setIsCustomGrid(true);
-    buildGrid(activeBlockIdx, activePaletteIdx, v, customRows, secondaryMode, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, v, customRows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
   const handleCustomRows = (val: number) => {
     const v = Math.max(3, Math.min(25, val));
     setCustomRows(v);
     setIsCustomGrid(true);
-    buildGrid(activeBlockIdx, activePaletteIdx, customCols, v, secondaryMode, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, customCols, v, secondaryMode, sashing, scrappy, lowVolume);
   };
 
   const handleSquarePreset = (idx: number) => {
@@ -522,12 +571,12 @@ export default function StudioPage() {
 
   const handleScrappyChange = (val: boolean) => {
     setScrappy(val);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, val, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, val, lowVolume);
   };
 
   const handleLowVolumeChange = (val: boolean) => {
     setLowVolume(val);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, scrappy, val);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, scrappy, val);
   };
 
   const handleSave = () => {
@@ -655,6 +704,50 @@ export default function StudioPage() {
                       <div className={`text-[10px] mt-0.5 ${secondaryMode.type === "block" && secondaryMode.defIdx === idx ? "text-white/70" : "text-[#A8A29E]"}`}>
                         {b.description}
                       </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* ── Sashing ──────────────────────────────────────────────── */}
+            <section>
+              <SectionLabel>
+                Sashing
+                <TooltipIcon text="Adds a fabric strip between blocks at interior boundaries. 1 square wide — same cut size as your block squares. Works best with 3×3 and 4×4 blocks." />
+              </SectionLabel>
+
+              {/* Layout selector */}
+              <div className="grid grid-cols-4 gap-1.5 mb-2">
+                {(["none", "columns", "rows", "both"] as const).map((layout) => (
+                  <button
+                    key={layout}
+                    onClick={() => handleSashingLayout(layout)}
+                    className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      sashing.layout === layout
+                        ? "bg-[#1C1917] text-white"
+                        : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+                    }`}
+                  >
+                    {layout === "none" ? "None" : layout === "columns" ? "Cols" : layout === "rows" ? "Rows" : "Both"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Color selector — only visible when sashing is active */}
+              {sashing.layout !== "none" && (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(["neutral", "contrast"] as const).map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => handleSashingColor(color)}
+                      className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer capitalize ${
+                        sashing.color === color
+                          ? "bg-[#1C1917] text-white"
+                          : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+                      }`}
+                    >
+                      {color === "neutral" ? "Neutral" : "Contrast"}
                     </button>
                   ))}
                 </div>
@@ -812,7 +905,7 @@ export default function StudioPage() {
                 Generate new palette
               </button>
               <button
-                onClick={() => buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, scrappy, lowVolume)}
+                onClick={() => buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume)}
                 className="w-full border border-[#E7E5E4] text-[#78716C] text-sm py-2.5 rounded-xl hover:border-[#C2683A] hover:text-[#C2683A] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw size={13} />
@@ -862,6 +955,14 @@ export default function StudioPage() {
             )}
             <span className="text-[#D6D3D1]">·</span>
             <span className="text-[#78716C]">{activePalette.emoji} {activePalette.label}</span>
+            {sashing.layout !== "none" && (
+              <>
+                <span className="text-[#D6D3D1]">·</span>
+                <span className="text-[#78716C] text-xs">
+                  {sashing.layout === "columns" ? "Sashing cols" : sashing.layout === "rows" ? "Sashing rows" : "Sashing"} · {sashing.color}
+                </span>
+              </>
+            )}
             {scrappy   && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Scrappy</span></>}
             {lowVolume && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Low Volume</span></>}
           </div>
