@@ -139,14 +139,14 @@ function resolveSlots(rules: Record<string, ColorRule>, freeColors: Record<strin
 
 // ─── Tile engine ──────────────────────────────────────────────────────────────
 
-interface TileStyleDef {
+interface BlockDef {
   key: string; label: string; description: string;
   tileW: number; tileH: number; grid: string[];
   colorRules: Record<string, ColorRule>;
   freeSlots: string[];
 }
 
-function generateTile(def: TileStyleDef, cols: number, rows: number, freeColors: Record<string, string>, scrappy: boolean, lowVolume: boolean): string[] {
+function generateTile(def: BlockDef, cols: number, rows: number, freeColors: Record<string, string>, scrappy: boolean, lowVolume: boolean): string[] {
   const resolved = resolveSlots(def.colorRules, freeColors);
   return Array.from({ length: cols * rows }, (_, i) => {
     const row = Math.floor(i / cols);
@@ -163,7 +163,7 @@ function generateTile(def: TileStyleDef, cols: number, rows: number, freeColors:
 
 // ─── Style definitions ────────────────────────────────────────────────────────
 
-const STYLE_DEFS: TileStyleDef[] = [
+const BLOCK_DEFS: BlockDef[] = [
   {
     key: "checkerboard", label: "Checkerboard",
     description: "Classic alternating squares on cream",
@@ -283,7 +283,7 @@ function StudioNav() {
 
 export default function StudioPage() {
   // Style + palette
-  const [activeStyleIdx, setActiveStyleIdx] = useState(0);
+  const [activeBlockIdx, setActiveBlockIdx] = useState(0);
   const [activePaletteIdx, setActivePaletteIdx] = useState(0);
 
   // Grid state
@@ -319,13 +319,13 @@ export default function StudioPage() {
 
   // ── Pattern builder ───────────────────────────────────────────────────────
   const buildGrid = useCallback(
-    (styleIdx: number, paletteIdx: number, cols: number, rows: number, isScrappy: boolean, isLowVolume: boolean, animate = true) => {
+    (blockIdx: number, paletteIdx: number, cols: number, rows: number, isScrappy: boolean, isLowVolume: boolean, animate = true) => {
       if (animate) setIsTransitioning(true);
       generationSeed.current += 1;
       const thisSeed = generationSeed.current;
       setTimeout(() => {
         if (thisSeed !== generationSeed.current) return;
-        const def = STYLE_DEFS[styleIdx];
+        const def = BLOCK_DEFS[blockIdx];
         const palette = PALETTES[paletteIdx];
         const colors: Record<string, string> = {};
         def.freeSlots.forEach((slot) => {
@@ -347,30 +347,30 @@ export default function StudioPage() {
   const handleGenerate = () => {
     const nextPalette = (activePaletteIdx + 1) % PALETTES.length;
     setActivePaletteIdx(nextPalette);
-    buildGrid(activeStyleIdx, nextPalette, activeCols, activeRows, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, scrappy, lowVolume);
   };
 
-  const handleStyleChange = (idx: number) => {
-    setActiveStyleIdx(idx);
+  const handleBlockChange = (idx: number) => {
+    setActiveBlockIdx(idx);
     buildGrid(idx, activePaletteIdx, activeCols, activeRows, scrappy, lowVolume);
   };
 
   const handlePaletteChange = (idx: number) => {
     setActivePaletteIdx(idx);
-    buildGrid(activeStyleIdx, idx, activeCols, activeRows, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, idx, activeCols, activeRows, scrappy, lowVolume);
   };
 
   const handleGridPreset = (idx: number) => {
     setActiveGridIdx(idx);
     setIsCustomGrid(false);
     const { cols, rows } = GRID_PRESETS[idx];
-    buildGrid(activeStyleIdx, activePaletteIdx, cols, rows, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, cols, rows, scrappy, lowVolume);
   };
 
   const handleCustomGridSelect = () => {
     if (!isCustomGrid) {
       setIsCustomGrid(true);
-      buildGrid(activeStyleIdx, activePaletteIdx, customCols, customRows, scrappy, lowVolume);
+      buildGrid(activeBlockIdx, activePaletteIdx, customCols, customRows, scrappy, lowVolume);
     }
   };
 
@@ -378,14 +378,14 @@ export default function StudioPage() {
     const v = Math.max(3, Math.min(30, val));
     setCustomCols(v);
     setIsCustomGrid(true);
-    buildGrid(activeStyleIdx, activePaletteIdx, v, customRows, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, v, customRows, scrappy, lowVolume);
   };
 
   const handleCustomRows = (val: number) => {
     const v = Math.max(3, Math.min(25, val));
     setCustomRows(v);
     setIsCustomGrid(true);
-    buildGrid(activeStyleIdx, activePaletteIdx, customCols, v, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, customCols, v, scrappy, lowVolume);
   };
 
   // Square size doesn't change the pattern render — just updates the display
@@ -396,12 +396,12 @@ export default function StudioPage() {
 
   const handleScrappyChange = (val: boolean) => {
     setScrappy(val);
-    buildGrid(activeStyleIdx, activePaletteIdx, activeCols, activeRows, val, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, val, lowVolume);
   };
 
   const handleLowVolumeChange = (val: boolean) => {
     setLowVolume(val);
-    buildGrid(activeStyleIdx, activePaletteIdx, activeCols, activeRows, scrappy, val);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, scrappy, val);
   };
 
   const handleSave = () => {
@@ -410,7 +410,7 @@ export default function StudioPage() {
     setTimeout(() => setJustSaved(false), 1500);
   };
 
-  const activeDef = STYLE_DEFS[activeStyleIdx];
+  const activeBlock = BLOCK_DEFS[activeBlockIdx];
   const activePalette = PALETTES[activePaletteIdx];
 
   return (
@@ -423,22 +423,22 @@ export default function StudioPage() {
         <aside className="w-full lg:w-80 xl:w-[340px] lg:min-h-[calc(100vh-56px)] bg-white border-r border-[#E7E5E4] flex-shrink-0 overflow-y-auto">
           <div className="p-5 space-y-6">
 
-            {/* Pattern style */}
+            {/* Primary block */}
             <section>
-              <SectionLabel>Pattern Style</SectionLabel>
+              <SectionLabel>Primary Block</SectionLabel>
               <div className="grid grid-cols-2 gap-2">
-                {STYLE_DEFS.map((s, idx) => (
+                {BLOCK_DEFS.map((s, idx) => (
                   <button
                     key={s.key}
-                    onClick={() => handleStyleChange(idx)}
+                    onClick={() => handleBlockChange(idx)}
                     className={`px-3 py-2.5 rounded-xl text-xs font-medium text-left transition-all cursor-pointer leading-tight ${
-                      activeStyleIdx === idx
+                      activeBlockIdx === idx
                         ? "bg-[#1C1917] text-white"
                         : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
                     }`}
                   >
                     <div className="font-semibold">{s.label}</div>
-                    <div className={`text-[10px] mt-0.5 ${activeStyleIdx === idx ? "text-white/60" : "text-[#A8A29E]"}`}>
+                    <div className={`text-[10px] mt-0.5 ${activeBlockIdx === idx ? "text-white/60" : "text-[#A8A29E]"}`}>
                       {s.description}
                     </div>
                   </button>
@@ -474,8 +474,8 @@ export default function StudioPage() {
             {/* ── Block size ─────────────────────────────────────────────── */}
             <section>
               <SectionLabel>
-                Block Size
-                <TooltipIcon text={`The cut size of each square. Finished size = cut size − ½" (seam allowance). Changing block size doesn't affect the visual grid — it determines your finished quilt dimensions.`} />
+                Square Size
+                <TooltipIcon text={`The cut size of each square. Finished size = cut size − ½" (seam allowance). Changing square size doesn't affect the visual grid — it determines your finished quilt dimensions.`} />
               </SectionLabel>
 
               {/* Preset buttons */}
@@ -623,11 +623,11 @@ export default function StudioPage() {
                 Generate new palette
               </button>
               <button
-                onClick={() => buildGrid(activeStyleIdx, activePaletteIdx, activeCols, activeRows, scrappy, lowVolume)}
+                onClick={() => buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, scrappy, lowVolume)}
                 className="w-full border border-[#E7E5E4] text-[#78716C] text-sm py-2.5 rounded-xl hover:border-[#C2683A] hover:text-[#C2683A] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw size={13} />
-                Regenerate same style
+                Regenerate same block
               </button>
             </div>
 
@@ -661,7 +661,7 @@ export default function StudioPage() {
           {/* Label bar */}
           <div className="flex items-center gap-3 text-sm">
             <span className="font-bold text-[#C2683A] uppercase tracking-widest text-xs">
-              {activeDef.label}
+              {activeBlock.label} Block
             </span>
             <span className="text-[#D6D3D1]">·</span>
             <span className="text-[#78716C]">{activePalette.emoji} {activePalette.label}</span>
@@ -703,7 +703,7 @@ export default function StudioPage() {
               </span>
             </div>
             <p className="text-xs text-[#A8A29E] tabular-nums">
-              {activeCols} × {activeRows} grid &nbsp;·&nbsp; {activeCols * activeRows} squares &nbsp;·&nbsp; {fmtIn(activeSquareSize)} blocks &nbsp;·&nbsp; {fmtIn(finishedSq(activeSquareSize))} finished
+              {activeCols} × {activeRows} grid &nbsp;·&nbsp; {activeCols * activeRows} squares &nbsp;·&nbsp; {fmtIn(activeSquareSize)} squares &nbsp;·&nbsp; {fmtIn(finishedSq(activeSquareSize))} finished
             </p>
           </div>
 
