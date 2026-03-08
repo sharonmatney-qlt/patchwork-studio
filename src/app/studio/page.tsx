@@ -2,15 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  Shuffle,
-  Download,
-  Heart,
-  ChevronRight,
-  RotateCcw,
-  Sparkles,
-  Info,
-  Plus,
-  Minus,
+  Shuffle, Download, Heart, ChevronRight,
+  RotateCcw, Sparkles, Info, Plus, Minus,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -18,76 +11,55 @@ import Link from "next/link";
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
-  return [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ];
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
 }
-
 function rgbToHex(r: number, g: number, b: number): string {
-  return (
-    "#" +
-    [r, g, b]
-      .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0"))
-      .join("")
-  );
+  return "#" + [r,g,b].map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
 }
-
 function shadeDark(hex: string, amount = 0.35): string {
-  const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
+  const [r,g,b] = hexToRgb(hex);
+  return rgbToHex(r*(1-amount), g*(1-amount), b*(1-amount));
 }
-
 function shadeLight(hex: string, amount = 0.45): string {
-  const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(r + (255 - r) * amount, g + (255 - g) * amount, b + (255 - b) * amount);
+  const [r,g,b] = hexToRgb(hex);
+  return rgbToHex(r+(255-r)*amount, g+(255-g)*amount, b+(255-b)*amount);
 }
-
 function contrastColor(hex: string): string {
-  const [r, g, b] = hexToRgb(hex);
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const [r,g,b] = hexToRgb(hex);
+  const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
   return lum > 0.45 ? shadeDark(hex, 0.72) : shadeLight(hex, 0.78);
 }
-
 function scrappyNudge(hex: string, seed: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  const rng = (s: number) => ((Math.sin(s * 127.1 + 311.7) * 43758.5453) % 1 + 1) % 1;
-  const amount = 0.08 + rng(seed) * 0.14;
-  const darken = rng(seed + 1) > 0.5;
-  if (darken) return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
-  return rgbToHex(r + (255 - r) * amount, g + (255 - g) * amount, b + (255 - b) * amount);
+  const [r,g,b] = hexToRgb(hex);
+  const rng = (s: number) => ((Math.sin(s*127.1+311.7)*43758.5453)%1+1)%1;
+  const amount = 0.08 + rng(seed)*0.14;
+  return rng(seed+1) > 0.5
+    ? rgbToHex(r*(1-amount), g*(1-amount), b*(1-amount))
+    : rgbToHex(r+(255-r)*amount, g+(255-g)*amount, b+(255-b)*amount);
 }
-
 function lowVolumeNudge(hex: string, seed: number): string {
-  const palette = ["#F5F0E8","#EDE8DF","#E8E0D4","#F0EAE0","#EBE5DA","#F2ECE4","#E5DDD0","#EFE8DC"];
-  const rng = (s: number) => ((Math.sin(s * 311.7 + 127.1) * 43758.5453) % 1 + 1) % 1;
-  return palette[Math.floor(rng(seed) * palette.length)];
+  const p = ["#F5F0E8","#EDE8DF","#E8E0D4","#F0EAE0","#EBE5DA","#F2ECE4","#E5DDD0","#EFE8DC"];
+  const rng = (s: number) => ((Math.sin(s*311.7+127.1)*43758.5453)%1+1)%1;
+  return p[Math.floor(rng(seed)*p.length)];
 }
 
 // ─── Quilt size helpers ───────────────────────────────────────────────────────
 
-/** Each seam eats ¼" from both sides → finished = cut − 0.5" */
 function finishedSq(cutIn: number): number { return cutIn - 0.5; }
-
 function quiltFinishedDims(cols: number, rows: number, cutIn: number) {
   const fs = finishedSq(cutIn);
   return { w: cols * fs, h: rows * fs };
 }
-
 function quiltSizeName(wIn: number): string {
   if (wIn < 24) return "Mini";
-  if (wIn < 48) return "Baby";    // up to ~45" wide
-  if (wIn < 65) return "Throw";   // 50–60" wide
-  if (wIn < 80) return "Full";    // 65–78" wide
-  if (wIn < 98) return "Queen";   // 82–96" wide
+  if (wIn < 48) return "Baby";
+  if (wIn < 65) return "Throw";
+  if (wIn < 80) return "Full";
+  if (wIn < 98) return "Queen";
   return "King";
 }
-
-/** Format inches with common fractions — quilter-friendly */
 function fmtIn(n: number): string {
-  const whole = Math.floor(n);
-  const frac = n - whole;
+  const whole = Math.floor(n), frac = n - whole;
   if (frac === 0)                      return `${whole}"`;
   if (Math.abs(frac - 0.25) < 0.001)  return `${whole}¼"`;
   if (Math.abs(frac - 0.5)  < 0.001)  return `${whole}½"`;
@@ -95,15 +67,13 @@ function fmtIn(n: number): string {
   return `${n.toFixed(2).replace(/\.?0+$/, '')}"`;
 }
 
-// ─── Square size presets ──────────────────────────────────────────────────────
+// ─── Presets ──────────────────────────────────────────────────────────────────
 
 const SQUARE_PRESETS = [
   { label: '2.5"', value: 2.5, note: "Mini charm" },
   { label: '5"',   value: 5,   note: "Charm square" },
   { label: '10"',  value: 10,  note: "Layer cake" },
 ];
-
-// ─── Grid presets ─────────────────────────────────────────────────────────────
 
 const GRID_PRESETS = [
   { cols: 9,  rows: 7  },
@@ -127,17 +97,42 @@ function resolveSlots(rules: Record<string, ColorRule>, freeColors: Record<strin
   const out: Record<string, string> = {};
   for (const [slot, rule] of Object.entries(rules)) {
     if (rule.type === "NEUTRAL") out[slot] = NEUTRAL;
-    if (rule.type === "FREE") out[slot] = freeColors[slot] ?? "#888888";
+    if (rule.type === "FREE")    out[slot] = freeColors[slot] ?? "#888888";
   }
   for (const [slot, rule] of Object.entries(rules)) {
-    if (rule.type === "CONTRAST")   out[slot] = contrastColor(out[rule.of] ?? "#888888");
-    if (rule.type === "SHADE_DARK") out[slot] = shadeDark(out[rule.of] ?? "#888888", rule.amount);
-    if (rule.type === "SHADE_LIGHT")out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
+    if (rule.type === "CONTRAST")    out[slot] = contrastColor(out[rule.of] ?? "#888888");
+    if (rule.type === "SHADE_DARK")  out[slot] = shadeDark(out[rule.of] ?? "#888888", rule.amount);
+    if (rule.type === "SHADE_LIGHT") out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
   }
   return out;
 }
 
-// ─── Tile engine ──────────────────────────────────────────────────────────────
+/** Swap the roles of FREE and NEUTRAL — used for the Inverted secondary mode */
+function resolveInverted(rules: Record<string, ColorRule>, freeColors: Record<string, string>): Record<string, string> {
+  const primaryFree = Object.values(freeColors)[0] ?? "#888888";
+  const out: Record<string, string> = {};
+  for (const [slot, rule] of Object.entries(rules)) {
+    if (rule.type === "NEUTRAL") out[slot] = primaryFree; // was cream → now the color
+    if (rule.type === "FREE")    out[slot] = NEUTRAL;     // was color  → now cream
+  }
+  for (const [slot, rule] of Object.entries(rules)) {
+    if (rule.type === "CONTRAST")    out[slot] = contrastColor(out[rule.of] ?? "#888888");
+    if (rule.type === "SHADE_DARK")  out[slot] = shadeDark(out[rule.of] ?? "#888888", rule.amount);
+    if (rule.type === "SHADE_LIGHT") out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
+  }
+  return out;
+}
+
+// ─── Secondary block mode ─────────────────────────────────────────────────────
+
+type SecondaryMode =
+  | { type: "none" }
+  | { type: "neutral" }
+  | { type: "contrast" }
+  | { type: "inverted" }
+  | { type: "block"; defIdx: number };
+
+// ─── Block type ───────────────────────────────────────────────────────────────
 
 interface BlockDef {
   key: string; label: string; description: string;
@@ -146,22 +141,87 @@ interface BlockDef {
   freeSlots: string[];
 }
 
-function generateTile(def: BlockDef, cols: number, rows: number, freeColors: Record<string, string>, scrappy: boolean, lowVolume: boolean): string[] {
-  const resolved = resolveSlots(def.colorRules, freeColors);
+// ─── Pattern engine ───────────────────────────────────────────────────────────
+//
+// For each square, we determine whether it falls in a "primary block position"
+// or a "secondary block position" by treating the grid as a checkerboard of
+// (primary.tileW × primary.tileH) sized block units. The secondary block fills
+// the alternate positions.
+//
+// primary positions:   (blockCol + blockRow) % 2 === 0
+// secondary positions: (blockCol + blockRow) % 2 === 1
+
+function generatePattern(
+  primary: BlockDef,
+  secondary: SecondaryMode,
+  cols: number, rows: number,
+  freeColors: Record<string, string>,
+  scrappy: boolean, lowVolume: boolean,
+  blockDefs: BlockDef[]   // passed in to avoid circular reference
+): string[] {
+  const primaryResolved  = resolveSlots(primary.colorRules, freeColors);
+  const primaryFree      = freeColors[primary.freeSlots[0]] ?? "#888888";
+  const contrastFill     = contrastColor(primaryFree);
+  const invertedResolved = secondary.type === "inverted" ? resolveInverted(primary.colorRules, freeColors) : null;
+  const secondaryDef     = secondary.type === "block" ? blockDefs[secondary.defIdx] : null;
+  const secondaryRes     = secondaryDef ? resolveSlots(secondaryDef.colorRules, freeColors) : null;
+
   return Array.from({ length: cols * rows }, (_, i) => {
     const row = Math.floor(i / cols);
     const col = i % cols;
-    const pos = (row % def.tileH) * def.tileW + (col % def.tileW);
-    const slot = def.grid[pos];
-    const baseColor = resolved[slot] ?? "#CCCCCC";
-    const rule = def.colorRules[slot];
-    if (scrappy   && rule?.type === "FREE")    return scrappyNudge(baseColor, i * 7 + col * 13 + row * 31);
-    if (lowVolume && rule?.type === "NEUTRAL") return lowVolumeNudge(baseColor, i * 11 + col * 17 + row * 23);
-    return baseColor;
+
+    // Is this square in a primary or secondary block position?
+    const blockCol = Math.floor(col / primary.tileW);
+    const blockRow = Math.floor(row / primary.tileH);
+    const isPrimary = secondary.type === "none" || (blockCol + blockRow) % 2 === 0;
+
+    if (isPrimary) {
+      const pos = (row % primary.tileH) * primary.tileW + (col % primary.tileW);
+      const slot = primary.grid[pos];
+      const base = primaryResolved[slot] ?? "#CCCCCC";
+      const rule = primary.colorRules[slot];
+      if (scrappy   && rule?.type === "FREE")    return scrappyNudge(base, i*7+col*13+row*31);
+      if (lowVolume && rule?.type === "NEUTRAL") return lowVolumeNudge(base, i*11+col*17+row*23);
+      return base;
+    }
+
+    // Secondary rendering
+    switch (secondary.type) {
+      case "neutral": {
+        if (lowVolume) return lowVolumeNudge(NEUTRAL, i*11+col*17+row*23);
+        return NEUTRAL;
+      }
+      case "contrast": {
+        if (scrappy) return scrappyNudge(contrastFill, i*7+col*13+row*31);
+        return contrastFill;
+      }
+      case "inverted": {
+        const pos = (row % primary.tileH) * primary.tileW + (col % primary.tileW);
+        const slot = primary.grid[pos];
+        const base = invertedResolved![slot] ?? "#CCCCCC";
+        const origRule = primary.colorRules[slot];
+        // Roles are swapped: scrappy applies to originally-NEUTRAL (now colored) slots,
+        // lowVolume applies to originally-FREE (now cream) slots
+        if (scrappy   && origRule?.type === "NEUTRAL") return scrappyNudge(base, i*7+col*13+row*31);
+        if (lowVolume && origRule?.type === "FREE")    return lowVolumeNudge(base, i*11+col*17+row*23);
+        return base;
+      }
+      case "block": {
+        const sd = secondaryDef!;
+        const pos = (row % sd.tileH) * sd.tileW + (col % sd.tileW);
+        const slot = sd.grid[pos];
+        const base = secondaryRes![slot] ?? "#CCCCCC";
+        const rule = sd.colorRules[slot];
+        if (scrappy   && rule?.type === "FREE")    return scrappyNudge(base, i*7+col*13+row*31);
+        if (lowVolume && rule?.type === "NEUTRAL") return lowVolumeNudge(base, i*11+col*17+row*23);
+        return base;
+      }
+      default: return primaryResolved[primary.grid[0]] ?? "#CCCCCC";
+    }
   });
 }
 
-// ─── Style definitions ────────────────────────────────────────────────────────
+// ─── Block definitions ────────────────────────────────────────────────────────
 
 const BLOCK_DEFS: BlockDef[] = [
   {
@@ -282,44 +342,64 @@ function StudioNav() {
 // ─── Main studio component ────────────────────────────────────────────────────
 
 export default function StudioPage() {
-  // Style + palette
-  const [activeBlockIdx, setActiveBlockIdx] = useState(0);
+  // ── Primary block + palette ──────────────────────────────────────────────
+  const [activeBlockIdx, setActiveBlockIdx]   = useState(0);
   const [activePaletteIdx, setActivePaletteIdx] = useState(0);
 
-  // Grid state
-  const [activeGridIdx, setActiveGridIdx] = useState(1);   // 13×11 default
-  const [isCustomGrid, setIsCustomGrid] = useState(false);
-  const [customCols, setCustomCols] = useState(15);
-  const [customRows, setCustomRows] = useState(12);
+  // ── Secondary block ──────────────────────────────────────────────────────
+  const [secondaryMode, setSecondaryMode] = useState<SecondaryMode>({ type: "none" });
 
-  // Square size state — default 5" (charm square), the most common for a throw
+  // ── Grid ─────────────────────────────────────────────────────────────────
+  const [activeGridIdx, setActiveGridIdx]   = useState(1);
+  const [isCustomGrid, setIsCustomGrid]     = useState(false);
+  const [customCols, setCustomCols]         = useState(15);
+  const [customRows, setCustomRows]         = useState(12);
+
+  // ── Square size ───────────────────────────────────────────────────────────
   const [squarePresetIdx, setSquarePresetIdx] = useState(1);
-  const [isCustomSquare, setIsCustomSquare] = useState(false);
+  const [isCustomSquare, setIsCustomSquare]   = useState(false);
   const [customSquareStr, setCustomSquareStr] = useState("3.5");
 
-  // Variations + UI
-  const [scrappy, setScrappy]       = useState(false);
-  const [lowVolume, setLowVolume]   = useState(false);
-  const [grid, setGrid]             = useState<string[]>([]);
+  // ── Variations + UI ──────────────────────────────────────────────────────
+  const [scrappy, setScrappy]             = useState(false);
+  const [lowVolume, setLowVolume]         = useState(false);
+  const [grid, setGrid]                   = useState<string[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [savedCount, setSavedCount] = useState(0);
-  const [justSaved, setJustSaved]   = useState(false);
+  const [savedCount, setSavedCount]       = useState(0);
+  const [justSaved, setJustSaved]         = useState(false);
   const generationSeed = useRef(0);
 
   // ── Derived values ────────────────────────────────────────────────────────
   const activeCols = isCustomGrid ? customCols : GRID_PRESETS[activeGridIdx].cols;
   const activeRows = isCustomGrid ? customRows : GRID_PRESETS[activeGridIdx].rows;
-
   const activeSquareSize = isCustomSquare
     ? Math.max(0.5, parseFloat(customSquareStr) || 5)
     : SQUARE_PRESETS[squarePresetIdx].value;
-
   const { w: finW, h: finH } = quiltFinishedDims(activeCols, activeRows, activeSquareSize);
   const sizeName = quiltSizeName(finW);
+  const activeBlock = BLOCK_DEFS[activeBlockIdx];
+
+  // Blocks compatible for secondary "Block" mode: same tile size, not the primary itself
+  const compatibleBlocks = BLOCK_DEFS
+    .map((b, idx) => ({ b, idx }))
+    .filter(({ b, idx }) =>
+      idx !== activeBlockIdx &&
+      b.tileW === activeBlock.tileW &&
+      b.tileH === activeBlock.tileH
+    );
 
   // ── Pattern builder ───────────────────────────────────────────────────────
   const buildGrid = useCallback(
-    (blockIdx: number, paletteIdx: number, cols: number, rows: number, isScrappy: boolean, isLowVolume: boolean, animate = true) => {
+    (
+      blockIdx: number,
+      paletteIdx: number,
+      cols: number,
+      rows: number,
+      secMode: SecondaryMode,
+      isScrappy: boolean,
+      isLowVolume: boolean,
+      animate = true
+    ) => {
       if (animate) setIsTransitioning(true);
       generationSeed.current += 1;
       const thisSeed = generationSeed.current;
@@ -331,7 +411,7 @@ export default function StudioPage() {
         def.freeSlots.forEach((slot) => {
           colors[slot] = palette.colors[slot] ?? palette.colors.A ?? "#888888";
         });
-        setGrid(generateTile(def, cols, rows, colors, isScrappy, isLowVolume));
+        setGrid(generatePattern(def, secMode, cols, rows, colors, isScrappy, isLowVolume, BLOCK_DEFS));
         setIsTransitioning(false);
       }, animate ? 180 : 0);
     },
@@ -339,38 +419,70 @@ export default function StudioPage() {
   );
 
   useEffect(() => {
-    const { cols, rows } = GRID_PRESETS[1]; // 13×11
-    buildGrid(0, 0, cols, rows, false, false, false);
+    const { cols, rows } = GRID_PRESETS[1];
+    buildGrid(0, 0, cols, rows, { type: "none" }, false, false, false);
   }, [buildGrid]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleGenerate = () => {
     const nextPalette = (activePaletteIdx + 1) % PALETTES.length;
     setActivePaletteIdx(nextPalette);
-    buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, secondaryMode, scrappy, lowVolume);
   };
 
   const handleBlockChange = (idx: number) => {
     setActiveBlockIdx(idx);
-    buildGrid(idx, activePaletteIdx, activeCols, activeRows, scrappy, lowVolume);
+    // If secondary "block" mode is no longer compatible with the new primary, reset it
+    let newSec = secondaryMode;
+    if (secondaryMode.type === "block") {
+      const newPrimary = BLOCK_DEFS[idx];
+      const secDef = BLOCK_DEFS[secondaryMode.defIdx];
+      if (
+        secDef.tileW !== newPrimary.tileW ||
+        secDef.tileH !== newPrimary.tileH ||
+        secondaryMode.defIdx === idx
+      ) {
+        newSec = { type: "none" };
+        setSecondaryMode(newSec);
+      }
+    }
+    buildGrid(idx, activePaletteIdx, activeCols, activeRows, newSec, scrappy, lowVolume);
   };
 
   const handlePaletteChange = (idx: number) => {
     setActivePaletteIdx(idx);
-    buildGrid(activeBlockIdx, idx, activeCols, activeRows, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, idx, activeCols, activeRows, secondaryMode, scrappy, lowVolume);
+  };
+
+  const handleSecondaryMode = (modeType: SecondaryMode["type"]) => {
+    let newSec: SecondaryMode;
+    if (modeType === "block") {
+      if (compatibleBlocks.length === 0) return;
+      newSec = { type: "block", defIdx: compatibleBlocks[0].idx };
+    } else {
+      newSec = { type: modeType };
+    }
+    setSecondaryMode(newSec);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, scrappy, lowVolume);
+  };
+
+  const handleSecondaryBlockSelect = (defIdx: number) => {
+    const newSec: SecondaryMode = { type: "block", defIdx };
+    setSecondaryMode(newSec);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, scrappy, lowVolume);
   };
 
   const handleGridPreset = (idx: number) => {
     setActiveGridIdx(idx);
     setIsCustomGrid(false);
     const { cols, rows } = GRID_PRESETS[idx];
-    buildGrid(activeBlockIdx, activePaletteIdx, cols, rows, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, cols, rows, secondaryMode, scrappy, lowVolume);
   };
 
   const handleCustomGridSelect = () => {
     if (!isCustomGrid) {
       setIsCustomGrid(true);
-      buildGrid(activeBlockIdx, activePaletteIdx, customCols, customRows, scrappy, lowVolume);
+      buildGrid(activeBlockIdx, activePaletteIdx, customCols, customRows, secondaryMode, scrappy, lowVolume);
     }
   };
 
@@ -378,17 +490,16 @@ export default function StudioPage() {
     const v = Math.max(3, Math.min(30, val));
     setCustomCols(v);
     setIsCustomGrid(true);
-    buildGrid(activeBlockIdx, activePaletteIdx, v, customRows, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, v, customRows, secondaryMode, scrappy, lowVolume);
   };
 
   const handleCustomRows = (val: number) => {
     const v = Math.max(3, Math.min(25, val));
     setCustomRows(v);
     setIsCustomGrid(true);
-    buildGrid(activeBlockIdx, activePaletteIdx, customCols, v, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, customCols, v, secondaryMode, scrappy, lowVolume);
   };
 
-  // Square size doesn't change the pattern render — just updates the display
   const handleSquarePreset = (idx: number) => {
     setSquarePresetIdx(idx);
     setIsCustomSquare(false);
@@ -396,12 +507,12 @@ export default function StudioPage() {
 
   const handleScrappyChange = (val: boolean) => {
     setScrappy(val);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, val, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, val, lowVolume);
   };
 
   const handleLowVolumeChange = (val: boolean) => {
     setLowVolume(val);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, scrappy, val);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, scrappy, val);
   };
 
   const handleSave = () => {
@@ -410,8 +521,24 @@ export default function StudioPage() {
     setTimeout(() => setJustSaved(false), 1500);
   };
 
-  const activeBlock = BLOCK_DEFS[activeBlockIdx];
   const activePalette = PALETTES[activePaletteIdx];
+
+  // Secondary label for display
+  const secondaryLabel: string | null =
+    secondaryMode.type === "none"     ? null :
+    secondaryMode.type === "neutral"  ? "Neutral" :
+    secondaryMode.type === "contrast" ? "Contrast" :
+    secondaryMode.type === "inverted" ? "Inverted" :
+    secondaryMode.type === "block"    ? BLOCK_DEFS[secondaryMode.defIdx].label : null;
+
+  // Secondary mode options
+  const SEC_MODES: { type: SecondaryMode["type"]; label: string; desc: string }[] = [
+    { type: "none",     label: "None",     desc: "Single block only" },
+    { type: "neutral",  label: "Neutral",  desc: "Plain cream alternate" },
+    { type: "contrast", label: "Contrast", desc: "Solid contrast alternate" },
+    { type: "inverted", label: "Inverted", desc: "Colors swapped" },
+    { type: "block",    label: "Block",    desc: "Another block type" },
+  ];
 
   return (
     <div className="min-h-screen bg-[#FAFAF8]">
@@ -427,9 +554,9 @@ export default function StudioPage() {
             <section>
               <SectionLabel>Primary Block</SectionLabel>
               <div className="grid grid-cols-2 gap-2">
-                {BLOCK_DEFS.map((s, idx) => (
+                {BLOCK_DEFS.map((b, idx) => (
                   <button
-                    key={s.key}
+                    key={b.key}
                     onClick={() => handleBlockChange(idx)}
                     className={`px-3 py-2.5 rounded-xl text-xs font-medium text-left transition-all cursor-pointer leading-tight ${
                       activeBlockIdx === idx
@@ -437,13 +564,86 @@ export default function StudioPage() {
                         : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
                     }`}
                   >
-                    <div className="font-semibold">{s.label}</div>
+                    <div className="font-semibold">{b.label}</div>
                     <div className={`text-[10px] mt-0.5 ${activeBlockIdx === idx ? "text-white/60" : "text-[#A8A29E]"}`}>
-                      {s.description}
+                      {b.description}
                     </div>
                   </button>
                 ))}
               </div>
+            </section>
+
+            {/* ── Secondary block ─────────────────────────────────────────── */}
+            <section>
+              <SectionLabel>
+                Secondary Block
+                <TooltipIcon text="Fills alternate block positions on the grid — creates breathing room, contrast, or complex patterns. None = single repeating block." />
+              </SectionLabel>
+
+              {/* Mode selector */}
+              <div className="grid grid-cols-3 gap-1.5 mb-2">
+                {SEC_MODES.filter(m => m.type !== "block").map(m => (
+                  <button
+                    key={m.type}
+                    onClick={() => handleSecondaryMode(m.type)}
+                    title={m.desc}
+                    className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      secondaryMode.type === m.type
+                        ? "bg-[#1C1917] text-white"
+                        : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+                {/* Block option — shown only if compatible blocks exist */}
+                <button
+                  onClick={() => handleSecondaryMode("block")}
+                  disabled={compatibleBlocks.length === 0}
+                  title={compatibleBlocks.length === 0 ? "No other blocks with the same tile size" : "Another block type"}
+                  className={`py-2 rounded-xl text-xs font-semibold transition-all col-span-1 ${
+                    compatibleBlocks.length === 0
+                      ? "bg-[#F5F5F4] text-[#D6D3D1] cursor-not-allowed"
+                      : secondaryMode.type === "block"
+                        ? "bg-[#1C1917] text-white cursor-pointer"
+                        : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917] cursor-pointer"
+                  }`}
+                >
+                  Block
+                </button>
+              </div>
+
+              {/* Description line */}
+              {secondaryMode.type !== "none" && (
+                <p className="text-[11px] text-[#A8A29E] px-0.5 mb-2">
+                  {secondaryMode.type === "neutral"  && "Alternate positions fill with cream — classic plain block set."}
+                  {secondaryMode.type === "contrast" && "Alternate positions fill with a solid contrast color."}
+                  {secondaryMode.type === "inverted" && "Alternate positions use the same block, colors swapped."}
+                  {secondaryMode.type === "block"    && "Alternate positions use a different block — same color palette."}
+                </p>
+              )}
+
+              {/* Compatible block sub-picker (shown when "block" mode active) */}
+              {secondaryMode.type === "block" && compatibleBlocks.length > 0 && (
+                <div className="grid grid-cols-2 gap-1.5 mt-1">
+                  {compatibleBlocks.map(({ b, idx }) => (
+                    <button
+                      key={b.key}
+                      onClick={() => handleSecondaryBlockSelect(idx)}
+                      className={`px-3 py-2 rounded-xl text-xs font-medium text-left transition-all cursor-pointer leading-tight ${
+                        secondaryMode.type === "block" && secondaryMode.defIdx === idx
+                          ? "bg-[#C2683A] text-white"
+                          : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+                      }`}
+                    >
+                      <div className="font-semibold">{b.label}</div>
+                      <div className={`text-[10px] mt-0.5 ${secondaryMode.type === "block" && secondaryMode.defIdx === idx ? "text-white/70" : "text-[#A8A29E]"}`}>
+                        {b.description}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* Color palette */}
@@ -471,14 +671,12 @@ export default function StudioPage() {
               </div>
             </section>
 
-            {/* ── Block size ─────────────────────────────────────────────── */}
+            {/* Square size */}
             <section>
               <SectionLabel>
                 Square Size
-                <TooltipIcon text={`The cut size of each square. Finished size = cut size − ½" (seam allowance). Changing square size doesn't affect the visual grid — it determines your finished quilt dimensions.`} />
+                <TooltipIcon text={`Cut size of each square. Finished size = cut − ½" (seam allowance). Changing square size doesn't affect the visual grid — it sets your finished quilt dimensions.`} />
               </SectionLabel>
-
-              {/* Preset buttons */}
               <div className="flex gap-1.5 mb-2">
                 {SQUARE_PRESETS.map((sp, idx) => (
                   <button
@@ -505,16 +703,11 @@ export default function StudioPage() {
                   Custom
                 </button>
               </div>
-
-              {/* Custom input */}
               {isCustomSquare && (
                 <div className="flex items-center gap-2 bg-[#F5F5F4] rounded-xl px-3 py-2">
                   <span className="text-xs text-[#78716C] shrink-0">Cut size</span>
                   <input
-                    type="number"
-                    min={0.5}
-                    max={18}
-                    step={0.25}
+                    type="number" min={0.5} max={18} step={0.25}
                     value={customSquareStr}
                     onChange={(e) => setCustomSquareStr(e.target.value)}
                     className="flex-1 bg-transparent text-sm font-semibold text-[#1C1917] text-right outline-none min-w-0"
@@ -523,8 +716,6 @@ export default function StudioPage() {
                   <span className="text-xs text-[#78716C]">inches</span>
                 </div>
               )}
-
-              {/* Finished size note */}
               <p className="text-[11px] text-[#A8A29E] mt-1.5 px-0.5">
                 {activeSquareSize > 0.5
                   ? `Finished square: ${fmtIn(finishedSq(activeSquareSize))}`
@@ -532,12 +723,10 @@ export default function StudioPage() {
               </p>
             </section>
 
-            {/* ── Grid size ──────────────────────────────────────────────── */}
+            {/* Grid size */}
             <section>
               <SectionLabel>Grid Size</SectionLabel>
               <div className="flex flex-col gap-1.5">
-
-                {/* Presets — labels computed from current block size */}
                 {GRID_PRESETS.map((g, idx) => {
                   const { w, h } = quiltFinishedDims(g.cols, g.rows, activeSquareSize);
                   const name = quiltSizeName(w);
@@ -552,17 +741,13 @@ export default function StudioPage() {
                           : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
                       }`}
                     >
-                      <span className="font-semibold font-mono tracking-wide">
-                        {g.cols}×{g.rows}
-                      </span>
+                      <span className="font-semibold font-mono tracking-wide">{g.cols}×{g.rows}</span>
                       <span className={`text-xs tabular-nums ${isActive ? "text-white/70" : "text-[#A8A29E]"}`}>
                         {name} · {fmtIn(w)} × {fmtIn(h)}
                       </span>
                     </button>
                   );
                 })}
-
-                {/* Custom grid row */}
                 <div
                   onClick={handleCustomGridSelect}
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
@@ -575,19 +760,9 @@ export default function StudioPage() {
                     Custom
                   </span>
                   <div className="flex items-center gap-1.5 ml-auto" onClick={(e) => e.stopPropagation()}>
-                    <Stepper
-                      value={customCols}
-                      min={3} max={30}
-                      onChange={handleCustomCols}
-                      dark={isCustomGrid}
-                    />
+                    <Stepper value={customCols} min={3} max={30} onChange={handleCustomCols} dark={isCustomGrid} />
                     <span className={`text-xs ${isCustomGrid ? "text-white/60" : "text-[#A8A29E]"}`}>×</span>
-                    <Stepper
-                      value={customRows}
-                      min={3} max={25}
-                      onChange={handleCustomRows}
-                      dark={isCustomGrid}
-                    />
+                    <Stepper value={customRows} min={3} max={25} onChange={handleCustomRows} dark={isCustomGrid} />
                     {isCustomGrid && (
                       <span className="text-[10px] text-white/50 ml-1">
                         {fmtIn(quiltFinishedDims(customCols, customRows, activeSquareSize).w)}
@@ -597,7 +772,6 @@ export default function StudioPage() {
                     )}
                   </div>
                 </div>
-
               </div>
             </section>
 
@@ -605,11 +779,11 @@ export default function StudioPage() {
             <section>
               <SectionLabel>
                 Variations
-                <TooltipIcon text="Scrappy adds subtle tonal variety to colored squares — like using many fabrics in the same colorway. Low Volume swaps cream squares for a range of soft whites and naturals." />
+                <TooltipIcon text="Scrappy adds subtle tonal variety to colored squares. Low Volume swaps cream squares for a range of soft whites and naturals. Both apply to primary and secondary blocks." />
               </SectionLabel>
               <div className="space-y-2.5">
-                <Toggle label="Scrappy"     description="Tonal variety in colored squares"     checked={scrappy}    onChange={handleScrappyChange} />
-                <Toggle label="Low Volume"  description="Varied creams instead of one neutral"  checked={lowVolume}  onChange={handleLowVolumeChange} />
+                <Toggle label="Scrappy"    description="Tonal variety in colored squares"    checked={scrappy}    onChange={handleScrappyChange} />
+                <Toggle label="Low Volume" description="Varied creams instead of one neutral" checked={lowVolume} onChange={handleLowVolumeChange} />
               </div>
             </section>
 
@@ -623,7 +797,7 @@ export default function StudioPage() {
                 Generate new palette
               </button>
               <button
-                onClick={() => buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, scrappy, lowVolume)}
+                onClick={() => buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, scrappy, lowVolume)}
                 className="w-full border border-[#E7E5E4] text-[#78716C] text-sm py-2.5 rounded-xl hover:border-[#C2683A] hover:text-[#C2683A] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw size={13} />
@@ -659,14 +833,22 @@ export default function StudioPage() {
         <main className="flex-1 flex flex-col items-center justify-center p-6 lg:p-10 gap-5">
 
           {/* Label bar */}
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-2.5 text-sm flex-wrap justify-center">
             <span className="font-bold text-[#C2683A] uppercase tracking-widest text-xs">
               {activeBlock.label} Block
             </span>
+            {secondaryLabel && (
+              <>
+                <span className="text-[#D6D3D1]">+</span>
+                <span className="font-semibold text-[#78716C] uppercase tracking-widest text-xs">
+                  {secondaryLabel}
+                </span>
+              </>
+            )}
             <span className="text-[#D6D3D1]">·</span>
             <span className="text-[#78716C]">{activePalette.emoji} {activePalette.label}</span>
-            {scrappy    && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Scrappy</span></>}
-            {lowVolume  && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Low Volume</span></>}
+            {scrappy   && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Scrappy</span></>}
+            {lowVolume && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Low Volume</span></>}
           </div>
 
           {/* Pattern grid */}
@@ -676,7 +858,11 @@ export default function StudioPage() {
           >
             <div
               className="w-full h-full"
-              style={{ display: "grid", gridTemplateColumns: `repeat(${activeCols}, 1fr)`, gridTemplateRows: `repeat(${activeRows}, 1fr)` }}
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${activeCols}, 1fr)`,
+                gridTemplateRows: `repeat(${activeRows}, 1fr)`,
+              }}
             >
               {grid.map((color, i) => (
                 <div
@@ -692,7 +878,7 @@ export default function StudioPage() {
             </div>
           </div>
 
-          {/* ── Finished quilt dimensions ─────────────────────────────────── */}
+          {/* Finished dimensions */}
           <div className="flex flex-col items-center gap-1">
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold text-[#1C1917] tracking-tight">
@@ -757,7 +943,7 @@ function Toggle({ label, description, checked, onChange }: {
   label: string; description: string; checked: boolean; onChange: (val: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between p-3 rounded-xl bg-[#F5F5F4] hover:bg-[#EDEBE9] cursor-pointer transition-colors group">
+    <label className="flex items-center justify-between p-3 rounded-xl bg-[#F5F5F4] hover:bg-[#EDEBE9] cursor-pointer transition-colors">
       <div>
         <div className="text-sm font-semibold text-[#1C1917]">{label}</div>
         <div className="text-[11px] text-[#A8A29E] mt-0.5">{description}</div>
@@ -773,7 +959,6 @@ function Toggle({ label, description, checked, onChange }: {
   );
 }
 
-/** ± stepper for the custom grid row */
 function Stepper({ value, min, max, onChange, dark }: {
   value: number; min: number; max: number; onChange: (v: number) => void; dark: boolean;
 }) {
@@ -782,15 +967,9 @@ function Stepper({ value, min, max, onChange, dark }: {
   }`;
   return (
     <div className="flex items-center gap-1">
-      <button className={btn} onClick={() => onChange(Math.max(min, value - 1))} aria-label="decrease">
-        <Minus size={10} />
-      </button>
-      <span className={`text-sm font-mono font-bold w-6 text-center tabular-nums ${dark ? "text-white" : "text-[#1C1917]"}`}>
-        {value}
-      </span>
-      <button className={btn} onClick={() => onChange(Math.min(max, value + 1))} aria-label="increase">
-        <Plus size={10} />
-      </button>
+      <button className={btn} onClick={() => onChange(Math.max(min, value - 1))} aria-label="decrease"><Minus size={10} /></button>
+      <span className={`text-sm font-mono font-bold w-6 text-center tabular-nums ${dark ? "text-white" : "text-[#1C1917]"}`}>{value}</span>
+      <button className={btn} onClick={() => onChange(Math.min(max, value + 1))} aria-label="increase"><Plus size={10} /></button>
     </div>
   );
 }
