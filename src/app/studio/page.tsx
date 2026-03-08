@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Shuffle, Download, Heart,
-  RotateCcw, Sparkles, Info, Plus, Minus, ArrowLeft, Paintbrush,
+  RotateCcw, Sparkles, Info, Plus, Minus, ArrowLeft, Paintbrush, Undo2, Redo2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -523,6 +523,11 @@ export default function StudioPage() {
   const [paintModeActive, setPaintModeActive]     = useState(false);
   const [paintColor, setPaintColor]               = useState<string>("#888888");
 
+  // ── Override history (undo/redo) ─────────────────────────────────────────
+  const overridesHistoryRef = useRef<Record<number, string>[]>([{}]);
+  const historyIdxRef       = useRef(0);
+  const [historyIdx, setHistoryIdx] = useState(0);
+
   // ── Derived values ────────────────────────────────────────────────────────
   const activeCols = isCustomGrid ? customCols : GRID_PRESETS[activeGridIdx].cols;
   const activeRows = isCustomGrid ? customRows : GRID_PRESETS[activeGridIdx].rows;
@@ -585,6 +590,7 @@ export default function StudioPage() {
     setSquareOverrides({});
     setSelectedSquareIdx(null);
     setPaintModeActive(false);
+    overridesHistoryRef.current = [{}]; historyIdxRef.current = 0; setHistoryIdx(0);
     buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
@@ -593,6 +599,7 @@ export default function StudioPage() {
     setSquareOverrides({});
     setSelectedSquareIdx(null);
     setPaintModeActive(false);
+    overridesHistoryRef.current = [{}]; historyIdxRef.current = 0; setHistoryIdx(0);
     // If secondary "block" mode is no longer compatible with the new primary, reset it
     let newSec = secondaryMode;
     if (secondaryMode.type === "block") {
@@ -615,6 +622,7 @@ export default function StudioPage() {
     setSquareOverrides({});
     setSelectedSquareIdx(null);
     setPaintModeActive(false);
+    overridesHistoryRef.current = [{}]; historyIdxRef.current = 0; setHistoryIdx(0);
     buildGrid(activeBlockIdx, idx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
@@ -699,28 +707,51 @@ export default function StudioPage() {
     setTimeout(() => setJustSaved(false), 1500);
   };
 
+  const pushOverrides = (newOverrides: Record<number, string>) => {
+    const newHistory = overridesHistoryRef.current.slice(0, historyIdxRef.current + 1);
+    newHistory.push(newOverrides);
+    overridesHistoryRef.current = newHistory;
+    historyIdxRef.current = newHistory.length - 1;
+    setHistoryIdx(historyIdxRef.current);
+    setSquareOverrides(newOverrides);
+  };
+
   const handleApplyColor = (squareIdx: number, hex: string, scope: "square" | "all") => {
     const targetColor = (squareOverrides[squareIdx] ?? grid[squareIdx] ?? "").toLowerCase();
+    let newOverrides: Record<number, string>;
     if (scope === "square") {
-      setSquareOverrides(prev => ({ ...prev, [squareIdx]: hex }));
+      newOverrides = { ...squareOverrides, [squareIdx]: hex };
     } else {
-      // Replace all squares that currently show the same color
-      const newOverrides: Record<number, string> = { ...squareOverrides };
+      newOverrides = { ...squareOverrides };
       grid.forEach((c, i) => {
         if ((squareOverrides[i] ?? c).toLowerCase() === targetColor) {
           newOverrides[i] = hex;
         }
       });
-      setSquareOverrides(newOverrides);
     }
+    pushOverrides(newOverrides);
   };
 
   const handleResetSquare = (squareIdx: number) => {
-    setSquareOverrides(prev => {
-      const next = { ...prev };
-      delete next[squareIdx];
-      return next;
-    });
+    const next = { ...squareOverrides };
+    delete next[squareIdx];
+    pushOverrides(next);
+  };
+
+  const handleUndo = () => {
+    if (historyIdxRef.current > 0) {
+      historyIdxRef.current -= 1;
+      setHistoryIdx(historyIdxRef.current);
+      setSquareOverrides(overridesHistoryRef.current[historyIdxRef.current]);
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIdxRef.current < overridesHistoryRef.current.length - 1) {
+      historyIdxRef.current += 1;
+      setHistoryIdx(historyIdxRef.current);
+      setSquareOverrides(overridesHistoryRef.current[historyIdxRef.current]);
+    }
   };
 
   const activePalette = PALETTES[activePaletteIdx];
@@ -752,6 +783,9 @@ export default function StudioPage() {
   // In paint mode the editor shows the paint color (not the selected square's color)
   const editorCurrentColor = paintModeActive ? paintColor : selectedDisplayColor;
 
+  const canUndo = historyIdx > 0;
+  const canRedo = historyIdx < overridesHistoryRef.current.length - 1;
+
   return (
     <div className="bg-[#FAFAF8]" style={{ height: "100vh", overflow: "hidden" }}>
       <StudioNav />
@@ -780,6 +814,10 @@ export default function StudioPage() {
                 setPaintModeActive(a => !a);
               }}
               onPaintColorChange={setPaintColor}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
             />
           ) : (
 
@@ -1236,6 +1274,10 @@ function ColorEditorPanel({
   paintModeActive,
   onPaintModeToggle,
   onPaintColorChange,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: {
   squareIdx: number;
   currentColor: string;
@@ -1250,6 +1292,10 @@ function ColorEditorPanel({
   paintModeActive: boolean;
   onPaintModeToggle: () => void;
   onPaintColorChange: (hex: string) => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }) {
   const [hexInput, setHexInput] = useState(currentColor.toUpperCase());
 
@@ -1290,13 +1336,32 @@ function ColorEditorPanel({
 
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#E7E5E4] flex items-center justify-between flex-shrink-0">
-        <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 text-sm text-[#78716C] hover:text-[#1C1917] transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={14} />
-          <span>Controls</span>
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 text-sm text-[#78716C] hover:text-[#1C1917] transition-colors cursor-pointer pr-2"
+          >
+            <ArrowLeft size={14} />
+            <span>Controls</span>
+          </button>
+          <div className="w-px h-4 bg-[#E7E5E4]" />
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="Undo"
+            className={`p-1.5 rounded-lg transition-colors ${canUndo ? "text-[#78716C] hover:bg-[#F5F5F4] hover:text-[#1C1917] cursor-pointer" : "text-[#D6D3D1] cursor-not-allowed"}`}
+          >
+            <Undo2 size={14} />
+          </button>
+          <button
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="Redo"
+            className={`p-1.5 rounded-lg transition-colors ${canRedo ? "text-[#78716C] hover:bg-[#F5F5F4] hover:text-[#1C1917] cursor-pointer" : "text-[#D6D3D1] cursor-not-allowed"}`}
+          >
+            <Redo2 size={14} />
+          </button>
+        </div>
         <span className="text-[10px] font-bold text-[#1C1917] uppercase tracking-widest">Kona Colors</span>
       </div>
 
@@ -1310,7 +1375,7 @@ function ColorEditorPanel({
         }`}
       >
         <Paintbrush size={13} />
-        Paint Mode
+        Paint
         {paintModeActive ? (
           <span className="ml-auto text-white/80 font-normal text-[10px] tracking-wide">
             tap squares to paint
@@ -1364,11 +1429,14 @@ function ColorEditorPanel({
               This square
             </button>
             <button
-              onClick={() => onScopeChange("all")}
-              className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                scope === "all"
-                  ? "bg-[#1C1917] text-white"
-                  : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+              onClick={() => likeCount > 1 && onScopeChange("all")}
+              disabled={likeCount <= 1}
+              className={`py-2 rounded-xl text-xs font-semibold transition-all ${
+                likeCount <= 1
+                  ? "bg-[#F5F5F4] text-[#D6D3D1] cursor-not-allowed"
+                  : scope === "all"
+                    ? "bg-[#1C1917] text-white cursor-pointer"
+                    : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917] cursor-pointer"
               }`}
             >
               All {likeCount} like this
