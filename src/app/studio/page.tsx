@@ -9,10 +9,12 @@ import {
   RotateCcw,
   Sparkles,
   Info,
+  Plus,
+  Minus,
 } from "lucide-react";
 import Link from "next/link";
 
-// ─── Color utilities ────────────────────────────────────────────────────────
+// ─── Color utilities ─────────────────────────────────────────────────────────
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
@@ -39,11 +41,7 @@ function shadeDark(hex: string, amount = 0.35): string {
 
 function shadeLight(hex: string, amount = 0.45): string {
   const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(
-    r + (255 - r) * amount,
-    g + (255 - g) * amount,
-    b + (255 - b) * amount
-  );
+  return rgbToHex(r + (255 - r) * amount, g + (255 - g) * amount, b + (255 - b) * amount);
 }
 
 function contrastColor(hex: string): string {
@@ -52,34 +50,69 @@ function contrastColor(hex: string): string {
   return lum > 0.45 ? shadeDark(hex, 0.72) : shadeLight(hex, 0.78);
 }
 
-// Nudge a color slightly for scrappy variation
 function scrappyNudge(hex: string, seed: number): string {
   const [r, g, b] = hexToRgb(hex);
-  // Deterministic pseudo-random offset based on position seed
   const rng = (s: number) => ((Math.sin(s * 127.1 + 311.7) * 43758.5453) % 1 + 1) % 1;
-  const amount = 0.08 + rng(seed) * 0.14; // 8–22% variation
+  const amount = 0.08 + rng(seed) * 0.14;
   const darken = rng(seed + 1) > 0.5;
-  if (darken) {
-    return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
-  }
-  return rgbToHex(
-    r + (255 - r) * amount,
-    g + (255 - g) * amount,
-    b + (255 - b) * amount
-  );
+  if (darken) return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
+  return rgbToHex(r + (255 - r) * amount, g + (255 - g) * amount, b + (255 - b) * amount);
 }
 
-// Low-volume: shift toward light creamy neutrals
 function lowVolumeNudge(hex: string, seed: number): string {
-  const lowVolPalette = [
-    "#F5F0E8", "#EDE8DF", "#E8E0D4", "#F0EAE0",
-    "#EBE5DA", "#F2ECE4", "#E5DDD0", "#EFE8DC",
-  ];
+  const palette = ["#F5F0E8","#EDE8DF","#E8E0D4","#F0EAE0","#EBE5DA","#F2ECE4","#E5DDD0","#EFE8DC"];
   const rng = (s: number) => ((Math.sin(s * 311.7 + 127.1) * 43758.5453) % 1 + 1) % 1;
-  return lowVolPalette[Math.floor(rng(seed) * lowVolPalette.length)];
+  return palette[Math.floor(rng(seed) * palette.length)];
 }
 
-// ─── Color rule system ──────────────────────────────────────────────────────
+// ─── Quilt size helpers ───────────────────────────────────────────────────────
+
+/** Each seam eats ¼" from both sides → finished = cut − 0.5" */
+function finishedSq(cutIn: number): number { return cutIn - 0.5; }
+
+function quiltFinishedDims(cols: number, rows: number, cutIn: number) {
+  const fs = finishedSq(cutIn);
+  return { w: cols * fs, h: rows * fs };
+}
+
+function quiltSizeName(wIn: number): string {
+  if (wIn < 24) return "Mini";
+  if (wIn < 48) return "Baby";    // up to ~45" wide
+  if (wIn < 65) return "Throw";   // 50–60" wide
+  if (wIn < 80) return "Full";    // 65–78" wide
+  if (wIn < 98) return "Queen";   // 82–96" wide
+  return "King";
+}
+
+/** Format inches with common fractions — quilter-friendly */
+function fmtIn(n: number): string {
+  const whole = Math.floor(n);
+  const frac = n - whole;
+  if (frac === 0)                      return `${whole}"`;
+  if (Math.abs(frac - 0.25) < 0.001)  return `${whole}¼"`;
+  if (Math.abs(frac - 0.5)  < 0.001)  return `${whole}½"`;
+  if (Math.abs(frac - 0.75) < 0.001)  return `${whole}¾"`;
+  return `${n.toFixed(2).replace(/\.?0+$/, '')}"`;
+}
+
+// ─── Square size presets ──────────────────────────────────────────────────────
+
+const SQUARE_PRESETS = [
+  { label: '2.5"', value: 2.5, note: "Mini charm" },
+  { label: '5"',   value: 5,   note: "Charm square" },
+  { label: '10"',  value: 10,  note: "Layer cake" },
+];
+
+// ─── Grid presets ─────────────────────────────────────────────────────────────
+
+const GRID_PRESETS = [
+  { cols: 9,  rows: 7  },
+  { cols: 13, rows: 11 },
+  { cols: 17, rows: 13 },
+  { cols: 21, rows: 17 },
+];
+
+// ─── Color rule system ────────────────────────────────────────────────────────
 
 const NEUTRAL = "#F5F0E8";
 
@@ -90,49 +123,31 @@ type ColorRule =
   | { type: "SHADE_DARK"; of: string; amount?: number }
   | { type: "SHADE_LIGHT"; of: string; amount?: number };
 
-function resolveSlots(
-  rules: Record<string, ColorRule>,
-  freeColors: Record<string, string>
-): Record<string, string> {
+function resolveSlots(rules: Record<string, ColorRule>, freeColors: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [slot, rule] of Object.entries(rules)) {
     if (rule.type === "NEUTRAL") out[slot] = NEUTRAL;
     if (rule.type === "FREE") out[slot] = freeColors[slot] ?? "#888888";
   }
   for (const [slot, rule] of Object.entries(rules)) {
-    if (rule.type === "CONTRAST")
-      out[slot] = contrastColor(out[rule.of] ?? "#888888");
-    if (rule.type === "SHADE_DARK")
-      out[slot] = shadeDark(out[rule.of] ?? "#888888", rule.amount);
-    if (rule.type === "SHADE_LIGHT")
-      out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
+    if (rule.type === "CONTRAST")   out[slot] = contrastColor(out[rule.of] ?? "#888888");
+    if (rule.type === "SHADE_DARK") out[slot] = shadeDark(out[rule.of] ?? "#888888", rule.amount);
+    if (rule.type === "SHADE_LIGHT")out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
   }
   return out;
 }
 
-// ─── Tile engine ─────────────────────────────────────────────────────────────
+// ─── Tile engine ──────────────────────────────────────────────────────────────
 
 interface TileStyleDef {
-  key: string;
-  label: string;
-  description: string;
-  tileW: number;
-  tileH: number;
-  grid: string[];
+  key: string; label: string; description: string;
+  tileW: number; tileH: number; grid: string[];
   colorRules: Record<string, ColorRule>;
-  freeSlots: string[]; // which slots the user controls
+  freeSlots: string[];
 }
 
-function generateTile(
-  def: TileStyleDef,
-  cols: number,
-  rows: number,
-  freeColors: Record<string, string>,
-  scrappy: boolean,
-  lowVolume: boolean
-): string[] {
+function generateTile(def: TileStyleDef, cols: number, rows: number, freeColors: Record<string, string>, scrappy: boolean, lowVolume: boolean): string[] {
   const resolved = resolveSlots(def.colorRules, freeColors);
-
   return Array.from({ length: cols * rows }, (_, i) => {
     const row = Math.floor(i / cols);
     const col = i % cols;
@@ -140,176 +155,95 @@ function generateTile(
     const slot = def.grid[pos];
     const baseColor = resolved[slot] ?? "#CCCCCC";
     const rule = def.colorRules[slot];
-
-    // Apply scrappy variation to FREE slots
-    if (scrappy && rule?.type === "FREE") {
-      return scrappyNudge(baseColor, i * 7 + col * 13 + row * 31);
-    }
-    // Apply low-volume variation to NEUTRAL slots
-    if (lowVolume && rule?.type === "NEUTRAL") {
-      return lowVolumeNudge(baseColor, i * 11 + col * 17 + row * 23);
-    }
-
+    if (scrappy   && rule?.type === "FREE")    return scrappyNudge(baseColor, i * 7 + col * 13 + row * 31);
+    if (lowVolume && rule?.type === "NEUTRAL") return lowVolumeNudge(baseColor, i * 11 + col * 17 + row * 23);
     return baseColor;
   });
 }
 
-// ─── Style definitions ───────────────────────────────────────────────────────
+// ─── Style definitions ────────────────────────────────────────────────────────
 
 const STYLE_DEFS: TileStyleDef[] = [
   {
-    key: "checkerboard",
-    label: "Checkerboard",
+    key: "checkerboard", label: "Checkerboard",
     description: "Classic alternating squares on cream",
-    tileW: 2, tileH: 2,
-    grid: ["A", "B", "B", "A"],
-    colorRules: {
-      A: { type: "NEUTRAL" },
-      B: { type: "FREE" },
-    },
+    tileW: 2, tileH: 2, grid: ["A","B","B","A"],
+    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
     freeSlots: ["B"],
   },
   {
-    key: "check",
-    label: "Check",
+    key: "check", label: "Check",
     description: "Two-tone check — color + auto contrast",
-    tileW: 2, tileH: 2,
-    grid: ["A", "B", "B", "A"],
-    colorRules: {
-      A: { type: "FREE" },
-      B: { type: "CONTRAST", of: "A" },
-    },
+    tileW: 2, tileH: 2, grid: ["A","B","B","A"],
+    colorRules: { A: { type: "FREE" }, B: { type: "CONTRAST", of: "A" } },
     freeSlots: ["A"],
   },
   {
-    key: "gingham1",
-    label: "Gingham Classic",
+    key: "gingham1", label: "Gingham Classic",
     description: "Three-value gingham on cream background",
-    tileW: 2, tileH: 2,
-    grid: ["A", "B", "B", "C"],
-    colorRules: {
-      A: { type: "NEUTRAL" },
-      B: { type: "FREE" },
-      C: { type: "SHADE_DARK", of: "B", amount: 0.38 },
-    },
+    tileW: 2, tileH: 2, grid: ["A","B","B","C"],
+    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_DARK", of: "B", amount: 0.38 } },
     freeSlots: ["B"],
   },
   {
-    key: "gingham2",
-    label: "Gingham Rich",
+    key: "gingham2", label: "Gingham Rich",
     description: "Four-value gingham with light, mid & dark",
-    tileW: 2, tileH: 2,
-    grid: ["A", "B", "C", "D"],
-    colorRules: {
-      A: { type: "NEUTRAL" },
-      B: { type: "FREE" },
-      C: { type: "SHADE_LIGHT", of: "B", amount: 0.45 },
-      D: { type: "SHADE_DARK", of: "B", amount: 0.38 },
-    },
+    tileW: 2, tileH: 2, grid: ["A","B","C","D"],
+    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_LIGHT", of: "B", amount: 0.45 }, D: { type: "SHADE_DARK", of: "B", amount: 0.38 } },
     freeSlots: ["B"],
   },
   {
-    key: "ninepatch",
-    label: "Nine-Patch",
+    key: "ninepatch", label: "Nine-Patch",
     description: "3×3 classic quilt block — two alternating colors",
-    tileW: 3, tileH: 3,
-    grid: ["A", "B", "A", "B", "A", "B", "A", "B", "A"],
-    colorRules: {
-      A: { type: "FREE" },
-      B: { type: "CONTRAST", of: "A" },
-    },
+    tileW: 3, tileH: 3, grid: ["A","B","A","B","A","B","A","B","A"],
+    colorRules: { A: { type: "FREE" }, B: { type: "CONTRAST", of: "A" } },
     freeSlots: ["A"],
   },
   {
-    key: "grannysquare",
-    label: "Granny Square",
+    key: "grannysquare", label: "Granny Square",
     description: "Concentric squares radiating from center",
     tileW: 4, tileH: 4,
-    grid: [
-      "A", "A", "A", "A",
-      "A", "B", "B", "A",
-      "A", "B", "B", "A",
-      "A", "A", "A", "A",
-    ],
-    colorRules: {
-      A: { type: "FREE" },
-      B: { type: "CONTRAST", of: "A" },
-    },
+    grid: ["A","A","A","A","A","B","B","A","A","B","B","A","A","A","A","A"],
+    colorRules: { A: { type: "FREE" }, B: { type: "CONTRAST", of: "A" } },
     freeSlots: ["A"],
   },
   {
-    key: "stripe",
-    label: "Stripe",
+    key: "stripe", label: "Stripe",
     description: "Vertical color stripes on cream",
-    tileW: 4, tileH: 1,
-    grid: ["B", "A", "B", "A"],
-    colorRules: {
-      A: { type: "NEUTRAL" },
-      B: { type: "FREE" },
-    },
+    tileW: 4, tileH: 1, grid: ["B","A","B","A"],
+    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
     freeSlots: ["B"],
   },
   {
-    key: "logcabin",
-    label: "Log Cabin",
+    key: "logcabin", label: "Log Cabin",
     description: "Light and dark halves radiating from center",
     tileW: 4, tileH: 4,
-    grid: [
-      "A", "A", "A", "A",
-      "A", "B", "B", "C",
-      "A", "B", "B", "C",
-      "D", "D", "D", "C",
-    ],
-    colorRules: {
-      A: { type: "NEUTRAL" },
-      B: { type: "FREE" },
-      C: { type: "SHADE_DARK", of: "B", amount: 0.42 },
-      D: { type: "SHADE_LIGHT", of: "B", amount: 0.50 },
-    },
+    grid: ["A","A","A","A","A","B","B","C","A","B","B","C","D","D","D","C"],
+    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_DARK", of: "B", amount: 0.42 }, D: { type: "SHADE_LIGHT", of: "B", amount: 0.50 } },
     freeSlots: ["B"],
   },
 ];
 
-// ─── Curated palettes ────────────────────────────────────────────────────────
+// ─── Curated palettes ─────────────────────────────────────────────────────────
 
-interface Palette {
-  label: string;
-  emoji: string;
-  colors: Record<string, string>; // maps free slots (A, B …) → hex
-}
+interface Palette { label: string; emoji: string; colors: Record<string, string>; }
 
 const PALETTES: Palette[] = [
-  { label: "Navy",     emoji: "🌊", colors: { A: "#1C3A6B", B: "#1C3A6B" } },
+  { label: "Navy",       emoji: "🌊", colors: { A: "#1C3A6B", B: "#1C3A6B" } },
   { label: "Terracotta", emoji: "🏺", colors: { A: "#C2683A", B: "#C2683A" } },
-  { label: "Sage",     emoji: "🌿", colors: { A: "#4A6B4A", B: "#4A6B4A" } },
-  { label: "Teal",     emoji: "🦚", colors: { A: "#1E5F6B", B: "#1E5F6B" } },
-  { label: "Berry",    emoji: "🫐", colors: { A: "#6B2060", B: "#6B2060" } },
-  { label: "Gold",     emoji: "✨", colors: { A: "#8B6400", B: "#8B6400" } },
-  { label: "Crimson",  emoji: "❤️", colors: { A: "#C41E3A", B: "#C41E3A" } },
-  { label: "Slate",    emoji: "🩶", colors: { A: "#4A5568", B: "#4A5568" } },
-  { label: "Plum",     emoji: "🍇", colors: { A: "#7B2D8B", B: "#7B2D8B" } },
-  { label: "Olive",    emoji: "🫒", colors: { A: "#5C6B1E", B: "#5C6B1E" } },
-  { label: "Rose",     emoji: "🌸", colors: { A: "#B5467A", B: "#B5467A" } },
-  { label: "Cocoa",    emoji: "☕", colors: { A: "#6B3A1E", B: "#6B3A1E" } },
+  { label: "Sage",       emoji: "🌿", colors: { A: "#4A6B4A", B: "#4A6B4A" } },
+  { label: "Teal",       emoji: "🦚", colors: { A: "#1E5F6B", B: "#1E5F6B" } },
+  { label: "Berry",      emoji: "🫐", colors: { A: "#6B2060", B: "#6B2060" } },
+  { label: "Gold",       emoji: "✨", colors: { A: "#8B6400", B: "#8B6400" } },
+  { label: "Crimson",    emoji: "❤️", colors: { A: "#C41E3A", B: "#C41E3A" } },
+  { label: "Slate",      emoji: "🩶", colors: { A: "#4A5568", B: "#4A5568" } },
+  { label: "Plum",       emoji: "🍇", colors: { A: "#7B2D8B", B: "#7B2D8B" } },
+  { label: "Olive",      emoji: "🫒", colors: { A: "#5C6B1E", B: "#5C6B1E" } },
+  { label: "Rose",       emoji: "🌸", colors: { A: "#B5467A", B: "#B5467A" } },
+  { label: "Cocoa",      emoji: "☕", colors: { A: "#6B3A1E", B: "#6B3A1E" } },
 ];
 
-// ─── Grid size options ───────────────────────────────────────────────────────
-
-interface GridOption {
-  label: string;
-  cols: number;
-  rows: number;
-  note?: string;
-}
-
-const GRID_OPTIONS: GridOption[] = [
-  { label: "9×7",   cols: 9,  rows: 7,  note: "Baby / wall" },
-  { label: "13×11", cols: 13, rows: 11, note: "Throw" },
-  { label: "17×13", cols: 17, rows: 13, note: "Lap" },
-  { label: "21×17", cols: 21, rows: 17, note: "Twin" },
-];
-
-// ─── Studio nav ──────────────────────────────────────────────────────────────
+// ─── Studio nav ───────────────────────────────────────────────────────────────
 
 function StudioNav() {
   return (
@@ -319,9 +253,7 @@ function StudioNav() {
           <Link href="/" className="flex items-center gap-2 group">
             <div className="grid grid-cols-3 gap-0.5 w-6 h-6">
               {["#C2683A","#E8C9B0","#C2683A","#E8C9B0","#C2683A","#E8C9B0","#C2683A","#E8C9B0","#C2683A"].map(
-                (c, i) => (
-                  <div key={i} className="rounded-[1px]" style={{ backgroundColor: c }} />
-                )
+                (c, i) => <div key={i} className="rounded-[1px]" style={{ backgroundColor: c }} />
               )}
             </div>
             <span className="font-semibold text-[#1C1917] text-base tracking-tight group-hover:text-[#C2683A] transition-colors">
@@ -331,19 +263,15 @@ function StudioNav() {
           <span className="text-[#D6D3D1] hidden sm:block">·</span>
           <span className="text-sm text-[#78716C] hidden sm:block">Pattern Studio</span>
         </div>
-
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-1.5 text-sm text-[#78716C] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F4] transition-colors cursor-pointer">
-            <Heart size={14} />
-            <span className="hidden sm:inline">Save</span>
+            <Heart size={14} /><span className="hidden sm:inline">Save</span>
           </button>
           <button className="flex items-center gap-1.5 text-sm text-[#78716C] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F4] transition-colors cursor-pointer">
-            <Download size={14} />
-            <span className="hidden sm:inline">Export PDF</span>
+            <Download size={14} /><span className="hidden sm:inline">Export PDF</span>
           </button>
           <button className="bg-[#C2683A] text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-[#9A4F28] transition-colors cursor-pointer flex items-center gap-1.5">
-            <Sparkles size={13} />
-            <span>Upgrade</span>
+            <Sparkles size={13} /><span>Upgrade</span>
           </button>
         </div>
       </div>
@@ -351,34 +279,56 @@ function StudioNav() {
   );
 }
 
-// ─── Main studio component ───────────────────────────────────────────────────
+// ─── Main studio component ────────────────────────────────────────────────────
 
 export default function StudioPage() {
+  // Style + palette
   const [activeStyleIdx, setActiveStyleIdx] = useState(0);
   const [activePaletteIdx, setActivePaletteIdx] = useState(0);
-  const [activeGridIdx, setActiveGridIdx] = useState(1); // default 13×11
-  const [scrappy, setScrappy] = useState(false);
-  const [lowVolume, setLowVolume] = useState(false);
-  const [grid, setGrid] = useState<string[]>([]);
+
+  // Grid state
+  const [activeGridIdx, setActiveGridIdx] = useState(1);   // 13×11 default
+  const [isCustomGrid, setIsCustomGrid] = useState(false);
+  const [customCols, setCustomCols] = useState(15);
+  const [customRows, setCustomRows] = useState(12);
+
+  // Square size state — default 5" (charm square), the most common for a throw
+  const [squarePresetIdx, setSquarePresetIdx] = useState(1);
+  const [isCustomSquare, setIsCustomSquare] = useState(false);
+  const [customSquareStr, setCustomSquareStr] = useState("3.5");
+
+  // Variations + UI
+  const [scrappy, setScrappy]       = useState(false);
+  const [lowVolume, setLowVolume]   = useState(false);
+  const [grid, setGrid]             = useState<string[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
-  const [justSaved, setJustSaved] = useState(false);
+  const [justSaved, setJustSaved]   = useState(false);
   const generationSeed = useRef(0);
 
+  // ── Derived values ────────────────────────────────────────────────────────
+  const activeCols = isCustomGrid ? customCols : GRID_PRESETS[activeGridIdx].cols;
+  const activeRows = isCustomGrid ? customRows : GRID_PRESETS[activeGridIdx].rows;
+
+  const activeSquareSize = isCustomSquare
+    ? Math.max(0.5, parseFloat(customSquareStr) || 5)
+    : SQUARE_PRESETS[squarePresetIdx].value;
+
+  const { w: finW, h: finH } = quiltFinishedDims(activeCols, activeRows, activeSquareSize);
+  const sizeName = quiltSizeName(finW);
+
+  // ── Pattern builder ───────────────────────────────────────────────────────
   const buildGrid = useCallback(
-    (styleIdx: number, paletteIdx: number, gridIdx: number, isScrappy: boolean, isLowVolume: boolean, animate = true) => {
+    (styleIdx: number, paletteIdx: number, cols: number, rows: number, isScrappy: boolean, isLowVolume: boolean, animate = true) => {
       if (animate) setIsTransitioning(true);
       generationSeed.current += 1;
       const thisSeed = generationSeed.current;
-
       setTimeout(() => {
-        if (thisSeed !== generationSeed.current) return; // stale
+        if (thisSeed !== generationSeed.current) return;
         const def = STYLE_DEFS[styleIdx];
-        const { cols, rows } = GRID_OPTIONS[gridIdx];
         const palette = PALETTES[paletteIdx];
         const colors: Record<string, string> = {};
         def.freeSlots.forEach((slot) => {
-          // Map all free slots to the palette color (A or B both get same hue)
           colors[slot] = palette.colors[slot] ?? palette.colors.A ?? "#888888";
         });
         setGrid(generateTile(def, cols, rows, colors, isScrappy, isLowVolume));
@@ -388,41 +338,70 @@ export default function StudioPage() {
     []
   );
 
-  // Initial build
   useEffect(() => {
-    buildGrid(0, 0, 1, false, false, false);
+    const { cols, rows } = GRID_PRESETS[1]; // 13×11
+    buildGrid(0, 0, cols, rows, false, false, false);
   }, [buildGrid]);
 
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleGenerate = () => {
-    // Rotate to a new palette on "Generate"
     const nextPalette = (activePaletteIdx + 1) % PALETTES.length;
     setActivePaletteIdx(nextPalette);
-    buildGrid(activeStyleIdx, nextPalette, activeGridIdx, scrappy, lowVolume);
+    buildGrid(activeStyleIdx, nextPalette, activeCols, activeRows, scrappy, lowVolume);
   };
 
   const handleStyleChange = (idx: number) => {
     setActiveStyleIdx(idx);
-    buildGrid(idx, activePaletteIdx, activeGridIdx, scrappy, lowVolume);
+    buildGrid(idx, activePaletteIdx, activeCols, activeRows, scrappy, lowVolume);
   };
 
   const handlePaletteChange = (idx: number) => {
     setActivePaletteIdx(idx);
-    buildGrid(activeStyleIdx, idx, activeGridIdx, scrappy, lowVolume);
+    buildGrid(activeStyleIdx, idx, activeCols, activeRows, scrappy, lowVolume);
   };
 
-  const handleGridChange = (idx: number) => {
+  const handleGridPreset = (idx: number) => {
     setActiveGridIdx(idx);
-    buildGrid(activeStyleIdx, activePaletteIdx, idx, scrappy, lowVolume);
+    setIsCustomGrid(false);
+    const { cols, rows } = GRID_PRESETS[idx];
+    buildGrid(activeStyleIdx, activePaletteIdx, cols, rows, scrappy, lowVolume);
+  };
+
+  const handleCustomGridSelect = () => {
+    if (!isCustomGrid) {
+      setIsCustomGrid(true);
+      buildGrid(activeStyleIdx, activePaletteIdx, customCols, customRows, scrappy, lowVolume);
+    }
+  };
+
+  const handleCustomCols = (val: number) => {
+    const v = Math.max(3, Math.min(30, val));
+    setCustomCols(v);
+    setIsCustomGrid(true);
+    buildGrid(activeStyleIdx, activePaletteIdx, v, customRows, scrappy, lowVolume);
+  };
+
+  const handleCustomRows = (val: number) => {
+    const v = Math.max(3, Math.min(25, val));
+    setCustomRows(v);
+    setIsCustomGrid(true);
+    buildGrid(activeStyleIdx, activePaletteIdx, customCols, v, scrappy, lowVolume);
+  };
+
+  // Square size doesn't change the pattern render — just updates the display
+  const handleSquarePreset = (idx: number) => {
+    setSquarePresetIdx(idx);
+    setIsCustomSquare(false);
   };
 
   const handleScrappyChange = (val: boolean) => {
     setScrappy(val);
-    buildGrid(activeStyleIdx, activePaletteIdx, activeGridIdx, val, lowVolume);
+    buildGrid(activeStyleIdx, activePaletteIdx, activeCols, activeRows, val, lowVolume);
   };
 
   const handleLowVolumeChange = (val: boolean) => {
     setLowVolume(val);
-    buildGrid(activeStyleIdx, activePaletteIdx, activeGridIdx, scrappy, val);
+    buildGrid(activeStyleIdx, activePaletteIdx, activeCols, activeRows, scrappy, val);
   };
 
   const handleSave = () => {
@@ -431,7 +410,6 @@ export default function StudioPage() {
     setTimeout(() => setJustSaved(false), 1500);
   };
 
-  const { cols, rows } = GRID_OPTIONS[activeGridIdx];
   const activeDef = STYLE_DEFS[activeStyleIdx];
   const activePalette = PALETTES[activePaletteIdx];
 
@@ -439,14 +417,13 @@ export default function StudioPage() {
     <div className="min-h-screen bg-[#FAFAF8]">
       <StudioNav />
 
-      {/* Two-column layout */}
       <div className="pt-14 flex flex-col lg:flex-row min-h-screen">
 
-        {/* ── Left panel: controls ───────────────────────────────────────── */}
-        <aside className="w-full lg:w-80 xl:w-88 lg:min-h-[calc(100vh-56px)] bg-white border-r border-[#E7E5E4] flex-shrink-0 overflow-y-auto">
-          <div className="p-5 space-y-7">
+        {/* ── Left panel ─────────────────────────────────────────────────── */}
+        <aside className="w-full lg:w-80 xl:w-[340px] lg:min-h-[calc(100vh-56px)] bg-white border-r border-[#E7E5E4] flex-shrink-0 overflow-y-auto">
+          <div className="p-5 space-y-6">
 
-            {/* Style picker */}
+            {/* Pattern style */}
             <section>
               <SectionLabel>Pattern Style</SectionLabel>
               <div className="grid grid-cols-2 gap-2">
@@ -469,7 +446,7 @@ export default function StudioPage() {
               </div>
             </section>
 
-            {/* Palette picker */}
+            {/* Color palette */}
             <section>
               <SectionLabel>Color Palette</SectionLabel>
               <div className="grid grid-cols-4 gap-2">
@@ -484,7 +461,6 @@ export default function StudioPage() {
                         : "hover:bg-[#F5F5F4]"
                     }`}
                   >
-                    {/* Color swatch */}
                     <div
                       className="w-8 h-8 rounded-full border border-black/10 shadow-sm"
                       style={{ backgroundColor: p.colors.A ?? p.colors.B }}
@@ -495,52 +471,149 @@ export default function StudioPage() {
               </div>
             </section>
 
-            {/* Grid size */}
+            {/* ── Block size ─────────────────────────────────────────────── */}
             <section>
-              <SectionLabel>Grid Size</SectionLabel>
-              <div className="flex flex-col gap-1.5">
-                {GRID_OPTIONS.map((g, idx) => (
+              <SectionLabel>
+                Block Size
+                <TooltipIcon text={`The cut size of each square. Finished size = cut size − ½" (seam allowance). Changing block size doesn't affect the visual grid — it determines your finished quilt dimensions.`} />
+              </SectionLabel>
+
+              {/* Preset buttons */}
+              <div className="flex gap-1.5 mb-2">
+                {SQUARE_PRESETS.map((sp, idx) => (
                   <button
-                    key={g.label}
-                    onClick={() => handleGridChange(idx)}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
-                      activeGridIdx === idx
+                    key={sp.label}
+                    onClick={() => handleSquarePreset(idx)}
+                    title={sp.note}
+                    className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                      !isCustomSquare && squarePresetIdx === idx
                         ? "bg-[#1C1917] text-white"
                         : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
                     }`}
                   >
-                    <span className="font-semibold font-mono tracking-wide">{g.label}</span>
-                    <span className={`text-xs ${activeGridIdx === idx ? "text-white/60" : "text-[#A8A29E]"}`}>
-                      {g.note}
-                    </span>
+                    {sp.label}
                   </button>
                 ))}
+                <button
+                  onClick={() => setIsCustomSquare(true)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                    isCustomSquare
+                      ? "bg-[#1C1917] text-white"
+                      : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+                  }`}
+                >
+                  Custom
+                </button>
+              </div>
+
+              {/* Custom input */}
+              {isCustomSquare && (
+                <div className="flex items-center gap-2 bg-[#F5F5F4] rounded-xl px-3 py-2">
+                  <span className="text-xs text-[#78716C] shrink-0">Cut size</span>
+                  <input
+                    type="number"
+                    min={0.5}
+                    max={18}
+                    step={0.25}
+                    value={customSquareStr}
+                    onChange={(e) => setCustomSquareStr(e.target.value)}
+                    className="flex-1 bg-transparent text-sm font-semibold text-[#1C1917] text-right outline-none min-w-0"
+                    autoFocus
+                  />
+                  <span className="text-xs text-[#78716C]">inches</span>
+                </div>
+              )}
+
+              {/* Finished size note */}
+              <p className="text-[11px] text-[#A8A29E] mt-1.5 px-0.5">
+                {activeSquareSize > 0.5
+                  ? `Finished square: ${fmtIn(finishedSq(activeSquareSize))}`
+                  : "Enter a valid cut size"}
+              </p>
+            </section>
+
+            {/* ── Grid size ──────────────────────────────────────────────── */}
+            <section>
+              <SectionLabel>Grid Size</SectionLabel>
+              <div className="flex flex-col gap-1.5">
+
+                {/* Presets — labels computed from current block size */}
+                {GRID_PRESETS.map((g, idx) => {
+                  const { w, h } = quiltFinishedDims(g.cols, g.rows, activeSquareSize);
+                  const name = quiltSizeName(w);
+                  const isActive = !isCustomGrid && activeGridIdx === idx;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleGridPreset(idx)}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-[#1C1917] text-white"
+                          : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+                      }`}
+                    >
+                      <span className="font-semibold font-mono tracking-wide">
+                        {g.cols}×{g.rows}
+                      </span>
+                      <span className={`text-xs tabular-nums ${isActive ? "text-white/70" : "text-[#A8A29E]"}`}>
+                        {name} · {fmtIn(w)} × {fmtIn(h)}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {/* Custom grid row */}
+                <div
+                  onClick={handleCustomGridSelect}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
+                    isCustomGrid
+                      ? "bg-[#1C1917] text-white"
+                      : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+                  }`}
+                >
+                  <span className={`font-semibold shrink-0 ${isCustomGrid ? "text-white" : "text-[#78716C]"}`}>
+                    Custom
+                  </span>
+                  <div className="flex items-center gap-1.5 ml-auto" onClick={(e) => e.stopPropagation()}>
+                    <Stepper
+                      value={customCols}
+                      min={3} max={30}
+                      onChange={handleCustomCols}
+                      dark={isCustomGrid}
+                    />
+                    <span className={`text-xs ${isCustomGrid ? "text-white/60" : "text-[#A8A29E]"}`}>×</span>
+                    <Stepper
+                      value={customRows}
+                      min={3} max={25}
+                      onChange={handleCustomRows}
+                      dark={isCustomGrid}
+                    />
+                    {isCustomGrid && (
+                      <span className="text-[10px] text-white/50 ml-1">
+                        {fmtIn(quiltFinishedDims(customCols, customRows, activeSquareSize).w)}
+                        {" × "}
+                        {fmtIn(quiltFinishedDims(customCols, customRows, activeSquareSize).h)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
               </div>
             </section>
 
-            {/* Variation toggles */}
+            {/* Variations */}
             <section>
               <SectionLabel>
                 Variations
                 <TooltipIcon text="Scrappy adds subtle tonal variety to colored squares — like using many fabrics in the same colorway. Low Volume swaps cream squares for a range of soft whites and naturals." />
               </SectionLabel>
               <div className="space-y-2.5">
-                <Toggle
-                  label="Scrappy"
-                  description="Tonal variety in colored squares"
-                  checked={scrappy}
-                  onChange={handleScrappyChange}
-                />
-                <Toggle
-                  label="Low Volume"
-                  description="Varied creams instead of one neutral"
-                  checked={lowVolume}
-                  onChange={handleLowVolumeChange}
-                />
+                <Toggle label="Scrappy"     description="Tonal variety in colored squares"     checked={scrappy}    onChange={handleScrappyChange} />
+                <Toggle label="Low Volume"  description="Varied creams instead of one neutral"  checked={lowVolume}  onChange={handleLowVolumeChange} />
               </div>
             </section>
 
-            {/* Generate button */}
+            {/* Generate */}
             <div className="space-y-2 pt-1">
               <button
                 onClick={handleGenerate}
@@ -550,7 +623,7 @@ export default function StudioPage() {
                 Generate new palette
               </button>
               <button
-                onClick={() => buildGrid(activeStyleIdx, activePaletteIdx, activeGridIdx, scrappy, lowVolume)}
+                onClick={() => buildGrid(activeStyleIdx, activePaletteIdx, activeCols, activeRows, scrappy, lowVolume)}
                 className="w-full border border-[#E7E5E4] text-[#78716C] text-sm py-2.5 rounded-xl hover:border-[#C2683A] hover:text-[#C2683A] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw size={13} />
@@ -558,7 +631,7 @@ export default function StudioPage() {
               </button>
             </div>
 
-            {/* Save / status */}
+            {/* Save */}
             <div>
               <button
                 onClick={handleSave}
@@ -582,8 +655,9 @@ export default function StudioPage() {
           </div>
         </aside>
 
-        {/* ── Right panel: pattern preview ──────────────────────────────── */}
-        <main className="flex-1 flex flex-col items-center justify-center p-6 lg:p-10 gap-6">
+        {/* ── Right panel ────────────────────────────────────────────────── */}
+        <main className="flex-1 flex flex-col items-center justify-center p-6 lg:p-10 gap-5">
+
           {/* Label bar */}
           <div className="flex items-center gap-3 text-sm">
             <span className="font-bold text-[#C2683A] uppercase tracking-widest text-xs">
@@ -591,35 +665,18 @@ export default function StudioPage() {
             </span>
             <span className="text-[#D6D3D1]">·</span>
             <span className="text-[#78716C]">{activePalette.emoji} {activePalette.label}</span>
-            {scrappy && (
-              <>
-                <span className="text-[#D6D3D1]">·</span>
-                <span className="text-[#78716C] text-xs">Scrappy</span>
-              </>
-            )}
-            {lowVolume && (
-              <>
-                <span className="text-[#D6D3D1]">·</span>
-                <span className="text-[#78716C] text-xs">Low Volume</span>
-              </>
-            )}
+            {scrappy    && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Scrappy</span></>}
+            {lowVolume  && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Low Volume</span></>}
           </div>
 
           {/* Pattern grid */}
           <div
             className="w-full rounded-2xl overflow-hidden shadow-2xl border border-black/5"
-            style={{
-              aspectRatio: `${cols} / ${rows}`,
-              maxWidth: "min(100%, 800px)",
-            }}
+            style={{ aspectRatio: `${activeCols} / ${activeRows}`, maxWidth: "min(100%, 800px)" }}
           >
             <div
               className="w-full h-full"
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                gridTemplateRows: `repeat(${rows}, 1fr)`,
-              }}
+              style={{ display: "grid", gridTemplateColumns: `repeat(${activeCols}, 1fr)`, gridTemplateRows: `repeat(${activeRows}, 1fr)` }}
             >
               {grid.map((color, i) => (
                 <div
@@ -635,12 +692,19 @@ export default function StudioPage() {
             </div>
           </div>
 
-          {/* Quick stats */}
-          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-[#A8A29E]">
-            <QuickStat label="Squares" value={(cols * rows).toString()} />
-            <QuickStat label="Grid" value={`${cols} × ${rows}`} />
-            <QuickStat label="Tile" value={`${activeDef.tileW}×${activeDef.tileH}`} />
-            <QuickStat label="Colors" value={`${Object.keys(activeDef.colorRules).length} slots`} />
+          {/* ── Finished quilt dimensions ─────────────────────────────────── */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-[#1C1917] tracking-tight">
+                {fmtIn(finW)} × {fmtIn(finH)}
+              </span>
+              <span className="text-sm font-semibold text-[#C2683A] uppercase tracking-wider">
+                {sizeName}
+              </span>
+            </div>
+            <p className="text-xs text-[#A8A29E] tabular-nums">
+              {activeCols} × {activeRows} grid &nbsp;·&nbsp; {activeCols * activeRows} squares &nbsp;·&nbsp; {fmtIn(activeSquareSize)} blocks &nbsp;·&nbsp; {fmtIn(finishedSq(activeSquareSize))} finished
+            </p>
           </div>
 
           {/* Coming soon hint */}
@@ -658,7 +722,7 @@ export default function StudioPage() {
   );
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -680,7 +744,7 @@ function TooltipIcon({ text }: { text: string }) {
         <Info size={12} />
       </button>
       {show && (
-        <div className="absolute left-5 top-0 z-20 w-52 bg-[#1C1917] text-white text-[11px] leading-relaxed rounded-lg p-3 shadow-xl">
+        <div className="absolute left-5 top-0 z-20 w-56 bg-[#1C1917] text-white text-[11px] leading-relaxed rounded-lg p-3 shadow-xl">
           {text}
           <div className="absolute left-[-5px] top-2 w-0 h-0 border-t-4 border-b-4 border-r-4 border-transparent border-r-[#1C1917]" />
         </div>
@@ -689,16 +753,8 @@ function TooltipIcon({ text }: { text: string }) {
   );
 }
 
-function Toggle({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (val: boolean) => void;
+function Toggle({ label, description, checked, onChange }: {
+  label: string; description: string; checked: boolean; onChange: (val: boolean) => void;
 }) {
   return (
     <label className="flex items-center justify-between p-3 rounded-xl bg-[#F5F5F4] hover:bg-[#EDEBE9] cursor-pointer transition-colors group">
@@ -707,32 +763,34 @@ function Toggle({
         <div className="text-[11px] text-[#A8A29E] mt-0.5">{description}</div>
       </div>
       <div
-        className={`relative w-10 h-5.5 rounded-full transition-colors shrink-0 ml-3 ${
-          checked ? "bg-[#C2683A]" : "bg-[#D6D3D1]"
-        }`}
-        style={{ height: "22px" }}
+        className={`relative rounded-full transition-colors shrink-0 ml-3 ${checked ? "bg-[#C2683A]" : "bg-[#D6D3D1]"}`}
+        style={{ width: 40, height: 22 }}
       >
-        <div
-          className={`absolute top-0.5 left-0.5 w-[18px] h-[18px] bg-white rounded-full shadow transition-transform ${
-            checked ? "translate-x-[18px]" : "translate-x-0"
-          }`}
-        />
-        <input
-          type="checkbox"
-          className="sr-only"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-        />
+        <div className={`absolute top-0.5 left-0.5 w-[18px] h-[18px] bg-white rounded-full shadow transition-transform ${checked ? "translate-x-[18px]" : "translate-x-0"}`} />
+        <input type="checkbox" className="sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       </div>
     </label>
   );
 }
 
-function QuickStat({ label, value }: { label: string; value: string }) {
+/** ± stepper for the custom grid row */
+function Stepper({ value, min, max, onChange, dark }: {
+  value: number; min: number; max: number; onChange: (v: number) => void; dark: boolean;
+}) {
+  const btn = `w-6 h-6 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+    dark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-[#E7E5E4] hover:bg-[#D6D3D1] text-[#78716C]"
+  }`;
   return (
-    <div className="text-center">
-      <div className="font-semibold text-[#78716C] text-sm">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider">{label}</div>
+    <div className="flex items-center gap-1">
+      <button className={btn} onClick={() => onChange(Math.max(min, value - 1))} aria-label="decrease">
+        <Minus size={10} />
+      </button>
+      <span className={`text-sm font-mono font-bold w-6 text-center tabular-nums ${dark ? "text-white" : "text-[#1C1917]"}`}>
+        {value}
+      </span>
+      <button className={btn} onClick={() => onChange(Math.min(max, value + 1))} aria-label="increase">
+        <Plus size={10} />
+      </button>
     </div>
   );
 }
