@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Sparkles,
   Layers,
@@ -39,9 +40,9 @@ function Nav() {
 
         <div className="flex items-center gap-3">
           <button className="text-sm text-[#78716C] hover:text-[#1C1917] transition-colors px-3 py-1.5 cursor-pointer">Sign in</button>
-          <button className="bg-[#C2683A] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#9A4F28] transition-colors cursor-pointer">
+          <Link href="/studio" className="bg-[#C2683A] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#9A4F28] transition-colors cursor-pointer">
             Get started free
-          </button>
+          </Link>
         </div>
       </div>
     </nav>
@@ -71,13 +72,13 @@ function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <button className="bg-[#C2683A] text-white font-semibold px-6 py-3.5 rounded-xl hover:bg-[#9A4F28] transition-colors flex items-center justify-center gap-2 cursor-pointer">
+            <Link href="/studio" className="bg-[#C2683A] text-white font-semibold px-6 py-3.5 rounded-xl hover:bg-[#9A4F28] transition-colors flex items-center justify-center gap-2 cursor-pointer">
               Start designing free
               <ChevronRight size={16} />
-            </button>
-            <button className="border border-[#E7E5E4] text-[#1C1917] font-medium px-6 py-3.5 rounded-xl hover:border-[#C2683A] hover:text-[#C2683A] transition-colors cursor-pointer">
+            </Link>
+            <a href="#how-it-works" className="border border-[#E7E5E4] text-[#1C1917] font-medium px-6 py-3.5 rounded-xl hover:border-[#C2683A] hover:text-[#C2683A] transition-colors cursor-pointer flex items-center justify-center">
               See how it works
-            </button>
+            </a>
           </div>
 
           <p className="text-xs text-[#A8A29E] mt-4">Free forever · No credit card required</p>
@@ -225,7 +226,7 @@ const STEPS = [
 
 function HowItWorks() {
   return (
-    <section className="py-20 px-6 bg-white">
+    <section id="how-it-works" className="py-20 px-6 bg-white">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl lg:text-4xl font-bold text-[#1C1917] tracking-tight mb-4">
@@ -441,9 +442,9 @@ function FinalCTA() {
           The inspiration you&apos;ve been endlessly searching for is already here —
           and it&apos;s made for your fabrics.
         </p>
-        <button className="bg-[#C2683A] text-white font-semibold px-8 py-4 rounded-xl hover:bg-[#9A4F28] transition-colors text-lg cursor-pointer">
+        <Link href="/studio" className="inline-block bg-[#C2683A] text-white font-semibold px-8 py-4 rounded-xl hover:bg-[#9A4F28] transition-colors text-lg cursor-pointer">
           Start designing free →
-        </button>
+        </Link>
         <p className="text-xs text-[#A8A29E] mt-4">No credit card required · Cancel anytime</p>
       </div>
     </section>
