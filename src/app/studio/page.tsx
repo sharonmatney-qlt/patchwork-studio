@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Shuffle, Download, Heart,
-  RotateCcw, Sparkles, Info, Plus, Minus, ArrowLeft,
+  RotateCcw, Sparkles, Info, Plus, Minus, ArrowLeft, Paintbrush,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -520,6 +520,8 @@ export default function StudioPage() {
   const [squareOverrides, setSquareOverrides]     = useState<Record<number, string>>({});
   const [colorPickerScope, setColorPickerScope]   = useState<"square" | "all">("square");
   const [colorPickerFamily, setColorPickerFamily] = useState<string>("All");
+  const [paintModeActive, setPaintModeActive]     = useState(false);
+  const [paintColor, setPaintColor]               = useState<string>("#888888");
 
   // ── Derived values ────────────────────────────────────────────────────────
   const activeCols = isCustomGrid ? customCols : GRID_PRESETS[activeGridIdx].cols;
@@ -582,6 +584,7 @@ export default function StudioPage() {
     setActivePaletteIdx(nextPalette);
     setSquareOverrides({});
     setSelectedSquareIdx(null);
+    setPaintModeActive(false);
     buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
@@ -589,6 +592,7 @@ export default function StudioPage() {
     setActiveBlockIdx(idx);
     setSquareOverrides({});
     setSelectedSquareIdx(null);
+    setPaintModeActive(false);
     // If secondary "block" mode is no longer compatible with the new primary, reset it
     let newSec = secondaryMode;
     if (secondaryMode.type === "block") {
@@ -610,6 +614,7 @@ export default function StudioPage() {
     setActivePaletteIdx(idx);
     setSquareOverrides({});
     setSelectedSquareIdx(null);
+    setPaintModeActive(false);
     buildGrid(activeBlockIdx, idx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
@@ -744,6 +749,9 @@ export default function StudioPage() {
 
   const allDisplayColors = grid.map((c, i) => squareOverrides[i] ?? c);
 
+  // In paint mode the editor shows the paint color (not the selected square's color)
+  const editorCurrentColor = paintModeActive ? paintColor : selectedDisplayColor;
+
   return (
     <div className="bg-[#FAFAF8]" style={{ height: "100vh", overflow: "hidden" }}>
       <StudioNav />
@@ -757,7 +765,7 @@ export default function StudioPage() {
           {selectedSquareIdx !== null ? (
             <ColorEditorPanel
               squareIdx={selectedSquareIdx}
-              currentColor={selectedDisplayColor}
+              currentColor={editorCurrentColor}
               allDisplayColors={allDisplayColors}
               scope={colorPickerScope}
               family={colorPickerFamily}
@@ -765,7 +773,13 @@ export default function StudioPage() {
               onFamilyChange={setColorPickerFamily}
               onApply={handleApplyColor}
               onReset={handleResetSquare}
-              onClose={() => setSelectedSquareIdx(null)}
+              onClose={() => { setSelectedSquareIdx(null); setPaintModeActive(false); }}
+              paintModeActive={paintModeActive}
+              onPaintModeToggle={() => {
+                if (!paintModeActive) setPaintColor(selectedDisplayColor);
+                setPaintModeActive(a => !a);
+              }}
+              onPaintColorChange={setPaintColor}
             />
           ) : (
 
@@ -1151,18 +1165,26 @@ export default function StudioPage() {
               >
                 {grid.map((color, i) => {
                   const displayColor = squareOverrides[i] ?? color;
-                  const isSelected = selectedSquareIdx === i;
+                  const isSelected = !paintModeActive && selectedSquareIdx === i;
                   return (
                     <div
                       key={i}
-                      onClick={() => setSelectedSquareIdx(selectedSquareIdx === i ? null : i)}
+                      onClick={() => {
+                        if (paintModeActive) {
+                          // Paint mode: immediately paint this square with the current paint color
+                          handleApplyColor(i, paintColor, "square");
+                        } else {
+                          // Normal mode: select square and open/switch the color editor
+                          setSelectedSquareIdx(selectedSquareIdx === i ? null : i);
+                        }
+                      }}
                       style={{
                         backgroundColor: displayColor,
                         transition: isTransitioning
                           ? `background-color ${0.05 + (i % 16) * 0.008}s ease`
                           : "background-color 0.25s ease",
                         boxShadow: isSelected ? "inset 0 0 0 2px white, inset 0 0 0 3.5px #1C1917" : undefined,
-                        cursor: "pointer",
+                        cursor: paintModeActive ? "crosshair" : "pointer",
                       }}
                     />
                   );
@@ -1211,6 +1233,9 @@ function ColorEditorPanel({
   onApply,
   onReset,
   onClose,
+  paintModeActive,
+  onPaintModeToggle,
+  onPaintColorChange,
 }: {
   squareIdx: number;
   currentColor: string;
@@ -1222,6 +1247,9 @@ function ColorEditorPanel({
   onApply: (squareIdx: number, hex: string, scope: "square" | "all") => void;
   onReset: (squareIdx: number) => void;
   onClose: () => void;
+  paintModeActive: boolean;
+  onPaintModeToggle: () => void;
+  onPaintColorChange: (hex: string) => void;
 }) {
   const [hexInput, setHexInput] = useState(currentColor.toUpperCase());
 
@@ -1232,7 +1260,7 @@ function ColorEditorPanel({
   const filteredColors =
     family === "All" ? KONA_COLORS : KONA_COLORS.filter(k => k.family === family);
 
-  // Sync hex input when current color changes (different square selected)
+  // Sync hex input when current color changes (different square selected, or paint color changed)
   useEffect(() => {
     setHexInput(currentColor.toUpperCase());
   }, [currentColor, squareIdx]);
@@ -1240,7 +1268,20 @@ function ColorEditorPanel({
   const applyHex = (raw: string) => {
     const val = raw.startsWith("#") ? raw : `#${raw}`;
     if (/^#[0-9a-fA-F]{6}$/.test(val)) {
-      onApply(squareIdx, val.toLowerCase(), scope);
+      if (paintModeActive) {
+        onPaintColorChange(val.toLowerCase());
+      } else {
+        onApply(squareIdx, val.toLowerCase(), scope);
+      }
+    }
+  };
+
+  const handleSwatchClick = (hex: string) => {
+    setHexInput(hex.toUpperCase());
+    if (paintModeActive) {
+      onPaintColorChange(hex);
+    } else {
+      onApply(squareIdx, hex, scope);
     }
   };
 
@@ -1259,6 +1300,26 @@ function ColorEditorPanel({
         <span className="text-[10px] font-bold text-[#1C1917] uppercase tracking-widest">Kona Colors</span>
       </div>
 
+      {/* Paint mode toggle bar */}
+      <button
+        onClick={onPaintModeToggle}
+        className={`mx-4 mt-3 mb-1 flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex-shrink-0 ${
+          paintModeActive
+            ? "bg-[#C2683A] text-white"
+            : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+        }`}
+      >
+        <Paintbrush size={13} />
+        Paint Mode
+        {paintModeActive ? (
+          <span className="ml-auto text-white/80 font-normal text-[10px] tracking-wide">
+            tap squares to paint
+          </span>
+        ) : (
+          <span className="ml-auto text-[#A8A29E] font-normal">off</span>
+        )}
+      </button>
+
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
 
@@ -1270,7 +1331,7 @@ function ColorEditorPanel({
           />
           <div className="flex-1">
             <label className="text-[10px] font-bold text-[#78716C] uppercase tracking-widest block mb-1">
-              Hex
+              {paintModeActive ? "Paint color" : "Hex"}
             </label>
             <input
               type="text"
@@ -1285,7 +1346,8 @@ function ColorEditorPanel({
           </div>
         </div>
 
-        {/* Scope toggle */}
+        {/* Scope toggle — hidden in paint mode (always paints one square at a time) */}
+        {!paintModeActive && (
         <div>
           <div className="text-[10px] font-bold text-[#78716C] uppercase tracking-widest mb-1.5">
             Apply to
@@ -1313,6 +1375,7 @@ function ColorEditorPanel({
             </button>
           </div>
         </div>
+        )}
 
         {/* Family filter */}
         <div>
@@ -1343,10 +1406,7 @@ function ColorEditorPanel({
                 <button
                   key={k.hex + k.name}
                   title={k.name}
-                  onClick={() => {
-                    onApply(squareIdx, k.hex, scope);
-                    setHexInput(k.hex.toUpperCase());
-                  }}
+                  onClick={() => handleSwatchClick(k.hex)}
                   className="aspect-square rounded-lg cursor-pointer transition-transform hover:scale-110 active:scale-95"
                   style={{
                     backgroundColor: k.hex,
@@ -1360,13 +1420,15 @@ function ColorEditorPanel({
           </div>
         </div>
 
-        {/* Reset */}
-        <button
-          onClick={() => onReset(squareIdx)}
-          className="text-[11px] text-[#A8A29E] hover:text-[#78716C] transition-colors cursor-pointer text-left pt-1"
-        >
-          ↺ Reset this square to original
-        </button>
+        {/* Reset — hidden in paint mode */}
+        {!paintModeActive && (
+          <button
+            onClick={() => onReset(squareIdx)}
+            className="text-[11px] text-[#A8A29E] hover:text-[#78716C] transition-colors cursor-pointer text-left pt-1"
+          >
+            ↺ Reset this square to original
+          </button>
+        )}
 
       </div>
     </div>
