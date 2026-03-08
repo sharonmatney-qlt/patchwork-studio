@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  Shuffle, Download, Heart, ChevronRight,
-  RotateCcw, Sparkles, Info, Plus, Minus,
+  Shuffle, Download, Heart,
+  RotateCcw, Sparkles, Info, Plus, Minus, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -117,7 +117,7 @@ function resolveInverted(rules: Record<string, ColorRule>, freeColors: Record<st
   const out: Record<string, string> = {};
 
   if (hasNeutral) {
-    // Swap FREE ↔ NEUTRAL  (existing behavior, works for Checkerboard / Gingham / Stripe / Log Cabin)
+    // Swap FREE ↔ NEUTRAL  (works for Checkerboard / Gingham / Stripe / Log Cabin)
     for (const [slot, rule] of Object.entries(rules)) {
       if (rule.type === "NEUTRAL") out[slot] = primaryFree;
       if (rule.type === "FREE")    out[slot] = NEUTRAL;
@@ -125,8 +125,8 @@ function resolveInverted(rules: Record<string, ColorRule>, freeColors: Record<st
   } else {
     // No neutral — swap FREE ↔ CONTRAST-of-FREE  (Nine-Patch / Check / Granny Square)
     for (const [slot, rule] of Object.entries(rules)) {
-      if (rule.type === "FREE")     out[slot] = contrastColor(primaryFree); // slot gets the contrast color
-      if (rule.type === "CONTRAST") out[slot] = primaryFree;                // slot gets the free color
+      if (rule.type === "FREE")     out[slot] = contrastColor(primaryFree);
+      if (rule.type === "CONTRAST") out[slot] = primaryFree;
     }
   }
 
@@ -197,8 +197,7 @@ function generatePattern(
   // Sashing geometry:
   // Each "group" is (tileW+1) columns wide when column sashing is active — tileW block
   // columns followed by 1 sashing column. Same logic applies to rows. This ensures each
-  // block gets a full tileW×tileH footprint before the sashing strip fires, rather than
-  // using raw col%tileW which would keep firing every tileW columns even mid-block.
+  // block gets a full tileW×tileH footprint before the sashing strip fires.
   const sashCols = sashing.layout === "columns" || sashing.layout === "both";
   const sashRows = sashing.layout === "rows"    || sashing.layout === "both";
   const groupW   = sashCols ? primary.tileW + 1 : primary.tileW;
@@ -361,6 +360,92 @@ const PALETTES: Palette[] = [
   { label: "Cocoa",      emoji: "☕", colors: { A: "#6B3A1E", B: "#6B3A1E" } },
 ];
 
+// ─── Kona color library ───────────────────────────────────────────────────────
+
+interface KonaColor { name: string; hex: string; family: string; }
+
+const KONA_FAMILIES = ["Neutral", "Blue", "Green", "Yellow", "Orange", "Pink/Red", "Purple", "Brown"];
+
+const KONA_COLORS: KonaColor[] = [
+  // Neutrals
+  { name: "White",       hex: "#FFFFFF", family: "Neutral" },
+  { name: "Snow",        hex: "#F8F4F0", family: "Neutral" },
+  { name: "Parchment",   hex: "#F2E8D8", family: "Neutral" },
+  { name: "Bone",        hex: "#E8DFD0", family: "Neutral" },
+  { name: "Sand",        hex: "#D4C4A8", family: "Neutral" },
+  { name: "Stone",       hex: "#A89880", family: "Neutral" },
+  { name: "Ash",         hex: "#C0B8B0", family: "Neutral" },
+  { name: "Charcoal",    hex: "#4A4540", family: "Neutral" },
+  { name: "Coal",        hex: "#2A2420", family: "Neutral" },
+  { name: "Black",       hex: "#1A1410", family: "Neutral" },
+  // Blues
+  { name: "Powder",      hex: "#B8D4E8", family: "Blue" },
+  { name: "Sky",         hex: "#87B8D4", family: "Blue" },
+  { name: "Periwinkle",  hex: "#7890C8", family: "Blue" },
+  { name: "Cornflower",  hex: "#5878B8", family: "Blue" },
+  { name: "Bluebell",    hex: "#4060A8", family: "Blue" },
+  { name: "Denim",       hex: "#2A4878", family: "Blue" },
+  { name: "Navy",        hex: "#1C3060", family: "Blue" },
+  { name: "Midnight",    hex: "#101830", family: "Blue" },
+  { name: "Teal",        hex: "#1E5F6B", family: "Blue" },
+  { name: "Peacock",     hex: "#2A7890", family: "Blue" },
+  // Greens
+  { name: "Mint",        hex: "#A8D8B8", family: "Green" },
+  { name: "Sage",        hex: "#7A9870", family: "Green" },
+  { name: "Fern",        hex: "#4A7848", family: "Green" },
+  { name: "Moss",        hex: "#4A6040", family: "Green" },
+  { name: "Leaf",        hex: "#3A6830", family: "Green" },
+  { name: "Forest",      hex: "#284820", family: "Green" },
+  { name: "Olive",       hex: "#5C6B1E", family: "Green" },
+  { name: "Artichoke",   hex: "#788048", family: "Green" },
+  { name: "Avocado",     hex: "#506030", family: "Green" },
+  // Yellows & Golds
+  { name: "Butter",      hex: "#F8E890", family: "Yellow" },
+  { name: "Sunshine",    hex: "#F0C830", family: "Yellow" },
+  { name: "Gold",        hex: "#C89810", family: "Yellow" },
+  { name: "Amber",       hex: "#B07808", family: "Yellow" },
+  { name: "Honey",       hex: "#D08820", family: "Yellow" },
+  { name: "Maize",       hex: "#E0A828", family: "Yellow" },
+  // Oranges
+  { name: "Melon",       hex: "#F0A878", family: "Orange" },
+  { name: "Peach",       hex: "#F0C0A0", family: "Orange" },
+  { name: "Tangerine",   hex: "#E87830", family: "Orange" },
+  { name: "Terra Cotta", hex: "#C2683A", family: "Orange" },
+  { name: "Rust",        hex: "#A04820", family: "Orange" },
+  { name: "Sienna",      hex: "#8B4513", family: "Orange" },
+  { name: "Cayenne",     hex: "#A03018", family: "Orange" },
+  // Reds & Pinks
+  { name: "Blush",       hex: "#F0B8C0", family: "Pink/Red" },
+  { name: "Flamingo",    hex: "#F08898", family: "Pink/Red" },
+  { name: "Rose",        hex: "#D85878", family: "Pink/Red" },
+  { name: "Cerise",      hex: "#C03060", family: "Pink/Red" },
+  { name: "Crimson",     hex: "#B81838", family: "Pink/Red" },
+  { name: "Scarlet",     hex: "#C82020", family: "Pink/Red" },
+  { name: "Red",         hex: "#B01818", family: "Pink/Red" },
+  { name: "Watermelon",  hex: "#D84860", family: "Pink/Red" },
+  { name: "Coral",       hex: "#E87060", family: "Pink/Red" },
+  { name: "Candy Pink",  hex: "#E87898", family: "Pink/Red" },
+  // Purples
+  { name: "Lavender",    hex: "#C8B8E0", family: "Purple" },
+  { name: "Wisteria",    hex: "#A890C8", family: "Purple" },
+  { name: "Lilac",       hex: "#9878B8", family: "Purple" },
+  { name: "Grape",       hex: "#7850A0", family: "Purple" },
+  { name: "Plum",        hex: "#602880", family: "Purple" },
+  { name: "Eggplant",    hex: "#401858", family: "Purple" },
+  { name: "Berry",       hex: "#6B2060", family: "Purple" },
+  { name: "Magenta",     hex: "#A02878", family: "Purple" },
+  { name: "Orchid",      hex: "#C058A0", family: "Purple" },
+  // Browns
+  { name: "Linen",       hex: "#E8D8C0", family: "Brown" },
+  { name: "Wheat",       hex: "#D8C098", family: "Brown" },
+  { name: "Tan",         hex: "#C09868", family: "Brown" },
+  { name: "Camel",       hex: "#A87840", family: "Brown" },
+  { name: "Brown",       hex: "#785030", family: "Brown" },
+  { name: "Chocolate",   hex: "#503018", family: "Brown" },
+  { name: "Cocoa",       hex: "#6B3A1E", family: "Brown" },
+  { name: "Espresso",    hex: "#301808", family: "Brown" },
+];
+
 // ─── Studio nav ───────────────────────────────────────────────────────────────
 
 function StudioNav() {
@@ -401,7 +486,7 @@ function StudioNav() {
 
 export default function StudioPage() {
   // ── Primary block + palette ──────────────────────────────────────────────
-  const [activeBlockIdx, setActiveBlockIdx]   = useState(0);
+  const [activeBlockIdx, setActiveBlockIdx]     = useState(0);
   const [activePaletteIdx, setActivePaletteIdx] = useState(0);
 
   // ── Secondary block ──────────────────────────────────────────────────────
@@ -428,7 +513,13 @@ export default function StudioPage() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [savedCount, setSavedCount]       = useState(0);
   const [justSaved, setJustSaved]         = useState(false);
-  const generationSeed = useRef(0);
+  const generationSeed                    = useRef(0);
+
+  // ── Color picker ─────────────────────────────────────────────────────────
+  const [selectedSquareIdx, setSelectedSquareIdx] = useState<number | null>(null);
+  const [squareOverrides, setSquareOverrides]     = useState<Record<number, string>>({});
+  const [colorPickerScope, setColorPickerScope]   = useState<"square" | "all">("square");
+  const [colorPickerFamily, setColorPickerFamily] = useState<string>("All");
 
   // ── Derived values ────────────────────────────────────────────────────────
   const activeCols = isCustomGrid ? customCols : GRID_PRESETS[activeGridIdx].cols;
@@ -489,11 +580,15 @@ export default function StudioPage() {
   const handleGenerate = () => {
     const nextPalette = (activePaletteIdx + 1) % PALETTES.length;
     setActivePaletteIdx(nextPalette);
+    setSquareOverrides({});
+    setSelectedSquareIdx(null);
     buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
   const handleBlockChange = (idx: number) => {
     setActiveBlockIdx(idx);
+    setSquareOverrides({});
+    setSelectedSquareIdx(null);
     // If secondary "block" mode is no longer compatible with the new primary, reset it
     let newSec = secondaryMode;
     if (secondaryMode.type === "block") {
@@ -513,6 +608,8 @@ export default function StudioPage() {
 
   const handlePaletteChange = (idx: number) => {
     setActivePaletteIdx(idx);
+    setSquareOverrides({});
+    setSelectedSquareIdx(null);
     buildGrid(activeBlockIdx, idx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
   };
 
@@ -597,6 +694,30 @@ export default function StudioPage() {
     setTimeout(() => setJustSaved(false), 1500);
   };
 
+  const handleApplyColor = (squareIdx: number, hex: string, scope: "square" | "all") => {
+    const targetColor = (squareOverrides[squareIdx] ?? grid[squareIdx] ?? "").toLowerCase();
+    if (scope === "square") {
+      setSquareOverrides(prev => ({ ...prev, [squareIdx]: hex }));
+    } else {
+      // Replace all squares that currently show the same color
+      const newOverrides: Record<number, string> = { ...squareOverrides };
+      grid.forEach((c, i) => {
+        if ((squareOverrides[i] ?? c).toLowerCase() === targetColor) {
+          newOverrides[i] = hex;
+        }
+      });
+      setSquareOverrides(newOverrides);
+    }
+  };
+
+  const handleResetSquare = (squareIdx: number) => {
+    setSquareOverrides(prev => {
+      const next = { ...prev };
+      delete next[squareIdx];
+      return next;
+    });
+  };
+
   const activePalette = PALETTES[activePaletteIdx];
 
   // Secondary label for display
@@ -616,14 +737,39 @@ export default function StudioPage() {
     { type: "block",    label: "Block",    desc: "Another block type" },
   ];
 
+  // Current display color for selected square (with override applied)
+  const selectedDisplayColor = selectedSquareIdx !== null
+    ? (squareOverrides[selectedSquareIdx] ?? grid[selectedSquareIdx] ?? "#888888")
+    : "#888888";
+
+  const allDisplayColors = grid.map((c, i) => squareOverrides[i] ?? c);
+
   return (
-    <div className="min-h-screen bg-[#FAFAF8]">
+    <div className="bg-[#FAFAF8]" style={{ height: "100vh", overflow: "hidden" }}>
       <StudioNav />
 
-      <div className="pt-14 flex flex-col lg:flex-row min-h-screen">
+      <div className="pt-14 flex flex-col lg:flex-row" style={{ height: "100vh" }}>
 
         {/* ── Left panel ─────────────────────────────────────────────────── */}
-        <aside className="w-full lg:w-80 xl:w-[340px] lg:min-h-[calc(100vh-56px)] bg-white border-r border-[#E7E5E4] flex-shrink-0 overflow-y-auto">
+        <aside className="w-full lg:w-80 xl:w-[340px] bg-white border-r border-[#E7E5E4] flex-shrink-0 overflow-y-auto" style={{ height: "calc(100vh - 56px)" }}>
+
+          {/* ── Color editor (shown when a square is selected) ────────────── */}
+          {selectedSquareIdx !== null ? (
+            <ColorEditorPanel
+              squareIdx={selectedSquareIdx}
+              currentColor={selectedDisplayColor}
+              allDisplayColors={allDisplayColors}
+              scope={colorPickerScope}
+              family={colorPickerFamily}
+              onScopeChange={setColorPickerScope}
+              onFamilyChange={setColorPickerFamily}
+              onApply={handleApplyColor}
+              onReset={handleResetSquare}
+              onClose={() => setSelectedSquareIdx(null)}
+            />
+          ) : (
+
+          /* ── Normal controls ─────────────────────────────────────────────── */
           <div className="p-5 space-y-6">
 
             {/* Primary block */}
@@ -947,90 +1093,281 @@ export default function StudioPage() {
             </div>
 
           </div>
+          /* end normal controls */
+          )}
         </aside>
 
         {/* ── Right panel ────────────────────────────────────────────────── */}
-        <main className="flex-1 flex flex-col items-center justify-center p-6 lg:p-10 gap-5">
+        <main className="flex-1 overflow-y-auto" style={{ height: "calc(100vh - 56px)" }}>
+          <div className="min-h-full flex flex-col items-center justify-center p-6 lg:p-10 gap-5">
 
-          {/* Label bar */}
-          <div className="flex items-center gap-2.5 text-sm flex-wrap justify-center">
-            <span className="font-bold text-[#C2683A] uppercase tracking-widest text-xs">
-              {activeBlock.label} Block
-            </span>
-            {secondaryLabel && (
-              <>
-                <span className="text-[#D6D3D1]">+</span>
-                <span className="font-semibold text-[#78716C] uppercase tracking-widest text-xs">
-                  {secondaryLabel}
-                </span>
-              </>
-            )}
-            <span className="text-[#D6D3D1]">·</span>
-            <span className="text-[#78716C]">{activePalette.emoji} {activePalette.label}</span>
-            {sashing.layout !== "none" && (
-              <>
-                <span className="text-[#D6D3D1]">·</span>
-                <span className="text-[#78716C] text-xs">
-                  {sashing.layout === "columns" ? "Sashing cols" : sashing.layout === "rows" ? "Sashing rows" : "Sashing"} · {sashing.color}
-                </span>
-              </>
-            )}
-            {scrappy   && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Scrappy</span></>}
-            {lowVolume && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Low Volume</span></>}
-          </div>
+            {/* Label bar */}
+            <div className="flex items-center gap-2.5 text-sm flex-wrap justify-center">
+              <span className="font-bold text-[#C2683A] uppercase tracking-widest text-xs">
+                {activeBlock.label} Block
+              </span>
+              {secondaryLabel && (
+                <>
+                  <span className="text-[#D6D3D1]">+</span>
+                  <span className="font-semibold text-[#78716C] uppercase tracking-widest text-xs">
+                    {secondaryLabel}
+                  </span>
+                </>
+              )}
+              <span className="text-[#D6D3D1]">·</span>
+              <span className="text-[#78716C]">{activePalette.emoji} {activePalette.label}</span>
+              {sashing.layout !== "none" && (
+                <>
+                  <span className="text-[#D6D3D1]">·</span>
+                  <span className="text-[#78716C] text-xs">
+                    {sashing.layout === "columns" ? "Sashing cols" : sashing.layout === "rows" ? "Sashing rows" : "Sashing"} · {sashing.color}
+                  </span>
+                </>
+              )}
+              {scrappy   && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Scrappy</span></>}
+              {lowVolume && <><span className="text-[#D6D3D1]">·</span><span className="text-[#78716C] text-xs">Low Volume</span></>}
+              {Object.keys(squareOverrides).length > 0 && (
+                <>
+                  <span className="text-[#D6D3D1]">·</span>
+                  <span className="text-[#C2683A] text-xs font-medium">
+                    {Object.keys(squareOverrides).length} custom
+                  </span>
+                </>
+              )}
+            </div>
 
-          {/* Pattern grid */}
-          <div
-            className="w-full rounded-2xl overflow-hidden shadow-2xl border border-black/5"
-            style={{ aspectRatio: `${activeCols} / ${activeRows}`, maxWidth: "min(100%, 800px)" }}
-          >
+            {/* Pattern grid */}
             <div
-              className="w-full h-full"
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(${activeCols}, 1fr)`,
-                gridTemplateRows: `repeat(${activeRows}, 1fr)`,
-              }}
+              className="w-full rounded-2xl overflow-hidden shadow-2xl border border-black/5"
+              style={{ aspectRatio: `${activeCols} / ${activeRows}`, maxWidth: "min(100%, 800px)" }}
             >
-              {grid.map((color, i) => (
-                <div
-                  key={i}
-                  style={{
-                    backgroundColor: color,
-                    transition: isTransitioning
-                      ? `background-color ${0.05 + (i % 16) * 0.008}s ease`
-                      : "background-color 0.25s ease",
-                  }}
-                />
-              ))}
+              <div
+                className="w-full h-full"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${activeCols}, 1fr)`,
+                  gridTemplateRows: `repeat(${activeRows}, 1fr)`,
+                }}
+              >
+                {grid.map((color, i) => {
+                  const displayColor = squareOverrides[i] ?? color;
+                  const isSelected = selectedSquareIdx === i;
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => setSelectedSquareIdx(selectedSquareIdx === i ? null : i)}
+                      style={{
+                        backgroundColor: displayColor,
+                        transition: isTransitioning
+                          ? `background-color ${0.05 + (i % 16) * 0.008}s ease`
+                          : "background-color 0.25s ease",
+                        boxShadow: isSelected ? "inset 0 0 0 2px white, inset 0 0 0 3.5px #1C1917" : undefined,
+                        cursor: "pointer",
+                      }}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          {/* Finished dimensions */}
-          <div className="flex flex-col items-center gap-1">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-[#1C1917] tracking-tight">
-                {fmtIn(finW)} × {fmtIn(finH)}
-              </span>
-              <span className="text-sm font-semibold text-[#C2683A] uppercase tracking-wider">
-                {sizeName}
-              </span>
+            {/* Finished dimensions */}
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-[#1C1917] tracking-tight">
+                  {fmtIn(finW)} × {fmtIn(finH)}
+                </span>
+                <span className="text-sm font-semibold text-[#C2683A] uppercase tracking-wider">
+                  {sizeName}
+                </span>
+              </div>
+              <p className="text-xs text-[#A8A29E] tabular-nums">
+                {activeCols} × {activeRows} grid &nbsp;·&nbsp; {activeCols * activeRows} squares &nbsp;·&nbsp; {fmtIn(activeSquareSize)} squares &nbsp;·&nbsp; {fmtIn(finishedSq(activeSquareSize))} finished
+              </p>
             </div>
-            <p className="text-xs text-[#A8A29E] tabular-nums">
-              {activeCols} × {activeRows} grid &nbsp;·&nbsp; {activeCols * activeRows} squares &nbsp;·&nbsp; {fmtIn(activeSquareSize)} squares &nbsp;·&nbsp; {fmtIn(finishedSq(activeSquareSize))} finished
-            </p>
-          </div>
 
-          {/* Coming soon hint */}
-          <div className="flex items-center gap-2 bg-white border border-[#E7E5E4] rounded-xl px-4 py-3 max-w-sm">
-            <Sparkles size={14} className="text-[#C2683A] shrink-0" />
-            <p className="text-xs text-[#78716C] leading-snug">
-              <strong className="text-[#1C1917]">Fabric editor coming soon —</strong>{" "}
-              swap in your Kona colors or photograph your stash to design with your real fabrics.
+            {/* Click-to-edit hint */}
+            <p className="text-xs text-[#A8A29E] flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-sm border border-[#D6D3D1]" />
+              Click any square to edit its color with Kona fabrics
             </p>
-            <ChevronRight size={14} className="text-[#D6D3D1] shrink-0" />
+
           </div>
         </main>
+      </div>
+    </div>
+  );
+}
+
+// ─── Color editor panel ───────────────────────────────────────────────────────
+
+function ColorEditorPanel({
+  squareIdx,
+  currentColor,
+  allDisplayColors,
+  scope,
+  family,
+  onScopeChange,
+  onFamilyChange,
+  onApply,
+  onReset,
+  onClose,
+}: {
+  squareIdx: number;
+  currentColor: string;
+  allDisplayColors: string[];
+  scope: "square" | "all";
+  family: string;
+  onScopeChange: (s: "square" | "all") => void;
+  onFamilyChange: (f: string) => void;
+  onApply: (squareIdx: number, hex: string, scope: "square" | "all") => void;
+  onReset: (squareIdx: number) => void;
+  onClose: () => void;
+}) {
+  const [hexInput, setHexInput] = useState(currentColor.toUpperCase());
+
+  const likeCount = allDisplayColors.filter(
+    c => c.toLowerCase() === currentColor.toLowerCase()
+  ).length;
+
+  const filteredColors =
+    family === "All" ? KONA_COLORS : KONA_COLORS.filter(k => k.family === family);
+
+  // Sync hex input when current color changes (different square selected)
+  useEffect(() => {
+    setHexInput(currentColor.toUpperCase());
+  }, [currentColor, squareIdx]);
+
+  const applyHex = (raw: string) => {
+    const val = raw.startsWith("#") ? raw : `#${raw}`;
+    if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+      onApply(squareIdx, val.toLowerCase(), scope);
+    }
+  };
+
+  return (
+    <div className="flex flex-col" style={{ height: "calc(100vh - 56px)" }}>
+
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-[#E7E5E4] flex items-center justify-between flex-shrink-0">
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 text-sm text-[#78716C] hover:text-[#1C1917] transition-colors cursor-pointer"
+        >
+          <ArrowLeft size={14} />
+          <span>Controls</span>
+        </button>
+        <span className="text-[10px] font-bold text-[#1C1917] uppercase tracking-widest">Kona Colors</span>
+      </div>
+
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+
+        {/* Current color swatch + hex input */}
+        <div className="flex items-center gap-3">
+          <div
+            className="w-12 h-12 rounded-xl border border-black/10 shadow-sm flex-shrink-0"
+            style={{ backgroundColor: currentColor }}
+          />
+          <div className="flex-1">
+            <label className="text-[10px] font-bold text-[#78716C] uppercase tracking-widest block mb-1">
+              Hex
+            </label>
+            <input
+              type="text"
+              value={hexInput}
+              maxLength={7}
+              spellCheck={false}
+              onChange={(e) => setHexInput(e.target.value.toUpperCase())}
+              onBlur={() => applyHex(hexInput)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyHex(hexInput); }}
+              className="w-full bg-[#F5F5F4] rounded-lg px-3 py-2 text-sm font-mono text-[#1C1917] outline-none focus:ring-2 focus:ring-[#C2683A] focus:ring-offset-1"
+            />
+          </div>
+        </div>
+
+        {/* Scope toggle */}
+        <div>
+          <div className="text-[10px] font-bold text-[#78716C] uppercase tracking-widest mb-1.5">
+            Apply to
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => onScopeChange("square")}
+              className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                scope === "square"
+                  ? "bg-[#1C1917] text-white"
+                  : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+              }`}
+            >
+              This square
+            </button>
+            <button
+              onClick={() => onScopeChange("all")}
+              className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                scope === "all"
+                  ? "bg-[#1C1917] text-white"
+                  : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+              }`}
+            >
+              All {likeCount} like this
+            </button>
+          </div>
+        </div>
+
+        {/* Family filter */}
+        <div>
+          <div className="text-[10px] font-bold text-[#78716C] uppercase tracking-widest mb-2">
+            Kona Cotton
+          </div>
+          <div className="flex flex-wrap gap-1 mb-3">
+            {["All", ...KONA_FAMILIES].map(f => (
+              <button
+                key={f}
+                onClick={() => onFamilyChange(f)}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer ${
+                  family === f
+                    ? "bg-[#1C1917] text-white"
+                    : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9]"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          {/* Color swatches grid */}
+          <div className="grid grid-cols-6 gap-1.5">
+            {filteredColors.map(k => {
+              const isActive = currentColor.toLowerCase() === k.hex.toLowerCase();
+              return (
+                <button
+                  key={k.hex + k.name}
+                  title={k.name}
+                  onClick={() => {
+                    onApply(squareIdx, k.hex, scope);
+                    setHexInput(k.hex.toUpperCase());
+                  }}
+                  className="aspect-square rounded-lg cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                  style={{
+                    backgroundColor: k.hex,
+                    boxShadow: isActive
+                      ? "0 0 0 2px white, 0 0 0 3.5px #1C1917"
+                      : "0 0 0 1px rgba(0,0,0,0.12)",
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Reset */}
+        <button
+          onClick={() => onReset(squareIdx)}
+          className="text-[11px] text-[#A8A29E] hover:text-[#78716C] transition-colors cursor-pointer text-left pt-1"
+        >
+          ↺ Reset this square to original
+        </button>
+
       </div>
     </div>
   );
