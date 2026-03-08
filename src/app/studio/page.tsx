@@ -107,17 +107,32 @@ function resolveSlots(rules: Record<string, ColorRule>, freeColors: Record<strin
   return out;
 }
 
-/** Swap the roles of FREE and NEUTRAL — used for the Inverted secondary mode */
+/** Swap the two main roles — used for the Inverted secondary mode.
+ *  Blocks with NEUTRAL: swap FREE ↔ NEUTRAL (cream on color → color on cream).
+ *  Blocks without NEUTRAL (e.g. Nine-Patch, Check): swap FREE ↔ CONTRAST-of-FREE.
+ *  SHADE derivatives are re-derived from whichever base they point to after the swap. */
 function resolveInverted(rules: Record<string, ColorRule>, freeColors: Record<string, string>): Record<string, string> {
   const primaryFree = Object.values(freeColors)[0] ?? "#888888";
+  const hasNeutral  = Object.values(rules).some(r => r.type === "NEUTRAL");
   const out: Record<string, string> = {};
-  for (const [slot, rule] of Object.entries(rules)) {
-    if (rule.type === "NEUTRAL") out[slot] = primaryFree; // was cream → now the color
-    if (rule.type === "FREE")    out[slot] = NEUTRAL;     // was color  → now cream
+
+  if (hasNeutral) {
+    // Swap FREE ↔ NEUTRAL  (existing behavior, works for Checkerboard / Gingham / Stripe / Log Cabin)
+    for (const [slot, rule] of Object.entries(rules)) {
+      if (rule.type === "NEUTRAL") out[slot] = primaryFree;
+      if (rule.type === "FREE")    out[slot] = NEUTRAL;
+    }
+  } else {
+    // No neutral — swap FREE ↔ CONTRAST-of-FREE  (Nine-Patch / Check / Granny Square)
+    for (const [slot, rule] of Object.entries(rules)) {
+      if (rule.type === "FREE")     out[slot] = contrastColor(primaryFree); // slot gets the contrast color
+      if (rule.type === "CONTRAST") out[slot] = primaryFree;                // slot gets the free color
+    }
   }
+
+  // Re-derive any SHADE slots from their (now-swapped) base colors
   for (const [slot, rule] of Object.entries(rules)) {
-    if (rule.type === "CONTRAST")    out[slot] = contrastColor(out[rule.of] ?? "#888888");
-    if (rule.type === "SHADE_DARK")  out[slot] = shadeDark(out[rule.of] ?? "#888888", rule.amount);
+    if (rule.type === "SHADE_DARK")  out[slot] = shadeDark(out[rule.of]  ?? "#888888", rule.amount);
     if (rule.type === "SHADE_LIGHT") out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
   }
   return out;
