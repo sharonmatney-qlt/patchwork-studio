@@ -194,7 +194,16 @@ function generatePattern(
   const secondaryDef     = secondary.type === "block" ? blockDefs[secondary.defIdx] : null;
   const secondaryRes     = secondaryDef ? resolveSlots(secondaryDef.colorRules, freeColors) : null;
 
-  // Pre-compute sashing base color (null = no sashing)
+  // Sashing geometry:
+  // Each "group" is (tileW+1) columns wide when column sashing is active — tileW block
+  // columns followed by 1 sashing column. Same logic applies to rows. This ensures each
+  // block gets a full tileW×tileH footprint before the sashing strip fires, rather than
+  // using raw col%tileW which would keep firing every tileW columns even mid-block.
+  const sashCols = sashing.layout === "columns" || sashing.layout === "both";
+  const sashRows = sashing.layout === "rows"    || sashing.layout === "both";
+  const groupW   = sashCols ? primary.tileW + 1 : primary.tileW;
+  const groupH   = sashRows ? primary.tileH + 1 : primary.tileH;
+
   const sashBase = sashing.layout !== "none"
     ? (sashing.color === "neutral" ? NEUTRAL : contrastFill)
     : null;
@@ -203,26 +212,31 @@ function generatePattern(
     const row = Math.floor(i / cols);
     const col = i % cols;
 
-    // Sashing — overrides block color at interior block boundaries
-    if (sashBase !== null) {
-      const onSashCol = (sashing.layout === "columns" || sashing.layout === "both")
-        && col > 0 && col % primary.tileW === 0;
-      const onSashRow = (sashing.layout === "rows" || sashing.layout === "both")
-        && row > 0 && row % primary.tileH === 0;
-      if (onSashCol || onSashRow) {
-        if (sashing.color === "neutral"  && lowVolume) return lowVolumeNudge(sashBase, i*11+col*17+row*23);
-        if (sashing.color === "contrast" && scrappy)   return scrappyNudge(sashBase,   i*7+col*13+row*31);
-        return sashBase;
-      }
+    // Position within the current group (block cols 0..tileW-1, sash slot = tileW)
+    const posInGroupCol = col % groupW;
+    const posInGroupRow = row % groupH;
+
+    // Sashing strip — the final slot of each group
+    if (sashBase !== null && (
+      (sashCols && posInGroupCol === primary.tileW) ||
+      (sashRows && posInGroupRow === primary.tileH)
+    )) {
+      if (sashing.color === "neutral"  && lowVolume) return lowVolumeNudge(sashBase, i*11+col*17+row*23);
+      if (sashing.color === "contrast" && scrappy)   return scrappyNudge(sashBase,   i*7+col*13+row*31);
+      return sashBase;
     }
 
+    // Tile position within the block (posInGroupCol is already 0..tileW-1 here)
+    const tileCol = posInGroupCol;
+    const tileRow = posInGroupRow;
+    const pos     = tileRow * primary.tileW + tileCol;
+
     // Is this square in a primary or secondary block position?
-    const blockCol = Math.floor(col / primary.tileW);
-    const blockRow = Math.floor(row / primary.tileH);
+    const blockCol = Math.floor(col / groupW);
+    const blockRow = Math.floor(row / groupH);
     const isPrimary = secondary.type === "none" || (blockCol + blockRow) % 2 === 0;
 
     if (isPrimary) {
-      const pos = (row % primary.tileH) * primary.tileW + (col % primary.tileW);
       const slot = primary.grid[pos];
       const base = primaryResolved[slot] ?? "#CCCCCC";
       const rule = primary.colorRules[slot];
@@ -242,7 +256,6 @@ function generatePattern(
         return contrastFill;
       }
       case "inverted": {
-        const pos = (row % primary.tileH) * primary.tileW + (col % primary.tileW);
         const slot = primary.grid[pos];
         const base = invertedResolved![slot] ?? "#CCCCCC";
         const origRule = primary.colorRules[slot];
@@ -254,8 +267,7 @@ function generatePattern(
       }
       case "block": {
         const sd = secondaryDef!;
-        const pos = (row % sd.tileH) * sd.tileW + (col % sd.tileW);
-        const slot = sd.grid[pos];
+        const slot = sd.grid[pos]; // compatible blocks share tileW/tileH so pos is valid
         const base = secondaryRes![slot] ?? "#CCCCCC";
         const rule = sd.colorRules[slot];
         if (scrappy   && rule?.type === "FREE")    return scrappyNudge(base, i*7+col*13+row*31);
