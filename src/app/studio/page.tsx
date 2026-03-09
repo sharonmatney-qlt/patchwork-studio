@@ -282,61 +282,86 @@ function generatePattern(
 
 const BLOCK_DEFS: BlockDef[] = [
   {
-    key: "checkerboard", label: "Checkerboard",
-    description: "Classic alternating squares on cream",
+    key: "fourpatch", label: "4-Patch",
+    description: "Two alternating squares — the essential quilting building block",
     tileW: 2, tileH: 2, grid: ["A","B","B","A"],
+    colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
+    freeSlots: ["A"],
+  },
+  {
+    key: "ninepatch-x", label: "9-Patch X",
+    description: "Nine squares where the diagonal positions form an X",
+    tileW: 3, tileH: 3, grid: ["A","B","A","B","A","B","A","B","A"],
+    colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
+    freeSlots: ["A"],
+  },
+  {
+    key: "ninepatch-o", label: "9-Patch O",
+    description: "Nine squares where the edge positions form an O",
+    tileW: 3, tileH: 3, grid: ["A","B","A","B","A","B","A","B","A"],
     colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
     freeSlots: ["B"],
   },
   {
-    key: "check", label: "Check",
-    description: "Two-tone check — color + auto contrast",
-    tileW: 2, tileH: 2, grid: ["A","B","B","A"],
-    colorRules: { A: { type: "FREE" }, B: { type: "CONTRAST", of: "A" } },
+    key: "ninepatch-plus", label: "9-Patch +",
+    description: "Nine squares where the cross positions form a +",
+    tileW: 3, tileH: 3, grid: ["A","B","A","B","B","B","A","B","A"],
+    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
+    freeSlots: ["B"],
+  },
+  {
+    key: "sixteenpatch", label: "16-Patch",
+    description: "Sixteen alternating squares in two tonal values",
+    tileW: 4, tileH: 4,
+    grid: ["A","B","A","B","B","A","B","A","A","B","A","B","B","A","B","A"],
+    colorRules: { A: { type: "FREE" }, B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 } },
+    freeSlots: ["A"],
+  },
+  {
+    key: "twentyfivepatch", label: "25-Patch",
+    description: "Twenty-five alternating squares in two tonal values",
+    tileW: 5, tileH: 5,
+    grid: [
+      "A","B","A","B","A",
+      "B","A","B","A","B",
+      "A","B","A","B","A",
+      "B","A","B","A","B",
+      "A","B","A","B","A",
+    ],
+    colorRules: { A: { type: "FREE" }, B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 } },
+    freeSlots: ["A"],
+  },
+  {
+    key: "grannysquare", label: "Granny Square",
+    description: "Four concentric rings radiating outward from center",
+    tileW: 5, tileH: 5,
+    grid: [
+      "D","D","C","D","D",
+      "D","C","B","C","D",
+      "C","B","A","B","C",
+      "D","C","B","C","D",
+      "D","D","C","D","D",
+    ],
+    colorRules: {
+      A: { type: "FREE" },
+      B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 },
+      C: { type: "SHADE_DARK",  of: "A", amount: 0.38 },
+      D: { type: "NEUTRAL" },
+    },
     freeSlots: ["A"],
   },
   {
     key: "gingham1", label: "Gingham Classic",
-    description: "Three-value gingham on cream background",
+    description: "Woven-look check built from three tonal values",
     tileW: 2, tileH: 2, grid: ["A","B","B","C"],
     colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_DARK", of: "B", amount: 0.38 } },
     freeSlots: ["B"],
   },
   {
     key: "gingham2", label: "Gingham Rich",
-    description: "Four-value gingham with light, mid & dark",
+    description: "Four-value woven check with added tonal depth",
     tileW: 2, tileH: 2, grid: ["A","B","C","D"],
     colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_LIGHT", of: "B", amount: 0.45 }, D: { type: "SHADE_DARK", of: "B", amount: 0.38 } },
-    freeSlots: ["B"],
-  },
-  {
-    key: "ninepatch", label: "Nine-Patch",
-    description: "3×3 classic quilt block — two alternating colors",
-    tileW: 3, tileH: 3, grid: ["A","B","A","B","A","B","A","B","A"],
-    colorRules: { A: { type: "FREE" }, B: { type: "CONTRAST", of: "A" } },
-    freeSlots: ["A"],
-  },
-  {
-    key: "grannysquare", label: "Granny Square",
-    description: "Concentric squares radiating from center",
-    tileW: 4, tileH: 4,
-    grid: ["A","A","A","A","A","B","B","A","A","B","B","A","A","A","A","A"],
-    colorRules: { A: { type: "FREE" }, B: { type: "CONTRAST", of: "A" } },
-    freeSlots: ["A"],
-  },
-  {
-    key: "stripe", label: "Stripe",
-    description: "Vertical color stripes on cream",
-    tileW: 4, tileH: 1, grid: ["B","A","B","A"],
-    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
-    freeSlots: ["B"],
-  },
-  {
-    key: "logcabin", label: "Log Cabin",
-    description: "Light and dark halves radiating from center",
-    tileW: 4, tileH: 4,
-    grid: ["A","A","A","A","A","B","B","C","A","B","B","C","D","D","D","C"],
-    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_DARK", of: "B", amount: 0.42 }, D: { type: "SHADE_LIGHT", of: "B", amount: 0.50 } },
     freeSlots: ["B"],
   },
 ];
@@ -844,6 +869,15 @@ export default function StudioPage() {
                     </div>
                   </button>
                 ))}
+                {/* Block Library placeholder — full library coming soon */}
+                <button
+                  disabled
+                  title="More blocks coming soon"
+                  className="px-3 py-2.5 rounded-xl text-xs font-medium text-left leading-tight bg-[#F5F5F4] text-[#D6D3D1] cursor-not-allowed border border-dashed border-[#E7E5E4]"
+                >
+                  <div className="font-semibold">Block Library</div>
+                  <div className="text-[10px] mt-0.5 text-[#D6D3D1]">More blocks coming soon</div>
+                </button>
               </div>
             </section>
 
