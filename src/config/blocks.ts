@@ -71,7 +71,7 @@ export const BLOCK_DEFS: BlockDef[] = [
     colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
     freeSlots: ["A"],
     defaultSecondary: { type: "none" },
-    defaultCols: 12, defaultRows: 10,
+    defaultCols: 13, defaultRows: 11,
   },
   {
     key: "ninepatch-x", label: "9-Patch X",
@@ -80,7 +80,7 @@ export const BLOCK_DEFS: BlockDef[] = [
     colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
     freeSlots: ["A"],
     defaultSecondary: { type: "neutral" },
-    defaultCols: 12, defaultRows: 9,
+    defaultCols: 15, defaultRows: 15,
   },
   {
     key: "ninepatch-o", label: "9-Patch O",
@@ -89,7 +89,7 @@ export const BLOCK_DEFS: BlockDef[] = [
     colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
     freeSlots: ["B"],
     defaultSecondary: { type: "neutral" },
-    defaultCols: 12, defaultRows: 9,
+    defaultCols: 15, defaultRows: 15,
   },
   {
     key: "ninepatch-plus", label: "9-Patch +",
@@ -97,8 +97,8 @@ export const BLOCK_DEFS: BlockDef[] = [
     tileW: 3, tileH: 3, grid: ["A","B","A","B","B","B","A","B","A"],
     colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
     freeSlots: ["B"],
-    defaultSecondary: { type: "neutral" },
-    defaultCols: 12, defaultRows: 9,
+    defaultSecondary: { type: "inverted" },
+    defaultCols: 15, defaultRows: 15,
   },
   {
     key: "sixteenpatch", label: "16-Patch",
@@ -107,8 +107,8 @@ export const BLOCK_DEFS: BlockDef[] = [
     grid: ["A","B","A","B","B","A","B","A","A","B","A","B","B","A","B","A"],
     colorRules: { A: { type: "FREE" }, B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 } },
     freeSlots: ["A"],
-    defaultSecondary: { type: "none" },
-    defaultCols: 12, defaultRows: 8,
+    defaultSecondary: { type: "inverted" },
+    defaultCols: 12, defaultRows: 12,
   },
   {
     key: "twentyfivepatch", label: "25-Patch",
@@ -123,8 +123,8 @@ export const BLOCK_DEFS: BlockDef[] = [
     ],
     colorRules: { A: { type: "FREE" }, B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 } },
     freeSlots: ["A"],
-    defaultSecondary: { type: "neutral" },
-    defaultCols: 10, defaultRows: 10,
+    defaultSecondary: { type: "inverted" },
+    defaultCols: 15, defaultRows: 15,
   },
   {
     key: "grannysquare", label: "Granny Square",
@@ -144,8 +144,8 @@ export const BLOCK_DEFS: BlockDef[] = [
       D: { type: "NEUTRAL" },
     },
     freeSlots: ["A"],
-    defaultSecondary: { type: "neutral" },
-    defaultCols: 10, defaultRows: 10,
+    defaultSecondary: { type: "contrast" },
+    defaultCols: 15, defaultRows: 15,
   },
   {
     key: "gingham1", label: "Gingham Classic",
@@ -154,7 +154,7 @@ export const BLOCK_DEFS: BlockDef[] = [
     colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_DARK", of: "B", amount: 0.38 } },
     freeSlots: ["B"],
     defaultSecondary: { type: "none" },
-    defaultCols: 12, defaultRows: 10,
+    defaultCols: 13, defaultRows: 11,
   },
   {
     key: "gingham2", label: "Gingham Rich",
@@ -163,7 +163,7 @@ export const BLOCK_DEFS: BlockDef[] = [
     colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_LIGHT", of: "B", amount: 0.45 }, D: { type: "SHADE_DARK", of: "B", amount: 0.38 } },
     freeSlots: ["B"],
     defaultSecondary: { type: "none" },
-    defaultCols: 12, defaultRows: 10,
+    defaultCols: 13, defaultRows: 11,
   },
 ];
 
