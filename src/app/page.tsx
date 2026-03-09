@@ -61,14 +61,13 @@ function Hero() {
           </div>
 
           <h1 className="text-5xl lg:text-6xl font-bold text-[#1C1917] leading-[1.1] tracking-tight mb-6">
-            Design quilts<br />you&apos;ll actually<br />
-            <span className="text-[#C2683A]">love making.</span>
+            Patchwork patterns<br />designed by you.<br />
+            <span className="text-[#C2683A]">Play before you cut.</span>
           </h1>
 
           <p className="text-lg text-[#78716C] leading-relaxed mb-8 max-w-md">
-            Patchwork generates endless pattern inspiration — Scandinavian, scrappy,
-            checkered, ombré, and more — and lets you design with your exact fabrics
-            before you cut a single inch.
+            Classic, scrappy, gingham, ombré, and more — pre-cut friendly,
+            for quilters of every skill level.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -98,7 +97,7 @@ const FEATURES = [
     icon: Sparkles,
     title: "Endless pattern generation",
     description:
-      "Choose a mood and style — scrappy, gingham, plaid, granny square, pixel, ombré, and more — and generate a unique pattern instantly. Every combination is stored so you never see the same thing twice.",
+      "Play with classic blocks and timeless patchwork styles — scrappy, gingham, granny square, ombré, and more. Tweak colors, scale, and variations until it feels exactly right. Every combination is unique.",
   },
   {
     icon: Palette,
@@ -177,8 +176,8 @@ function StylesShowcase() {
             The style is endless.
           </h2>
           <p className="text-[#78716C] text-lg max-w-xl mx-auto">
-            Patchwork celebrates the beautiful diversity of squares-based design.
-            No triangles. No flying geese. Just meditative, beautiful patchwork.
+            Patchwork celebrates the timeless art of squares-based design.
+            No triangles. No flying geese. Just classic, meditative patchwork — in every color and scale imaginable.
           </p>
         </div>
 
