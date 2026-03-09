@@ -6,6 +6,11 @@ import {
   RotateCcw, Sparkles, Info, Plus, Minus, ArrowLeft, Paintbrush, Undo2, Redo2,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  NEUTRAL, BLOCK_DEFS, PALETTES, KONA_FAMILIES, KONA_COLORS,
+  type BlockDef, type ColorRule, type SecondaryMode, type SashingConfig,
+  type Palette, type KonaColor,
+} from "@/config/blocks";
 
 // ─── Color utilities ─────────────────────────────────────────────────────────
 
@@ -84,15 +89,6 @@ const GRID_PRESETS = [
 
 // ─── Color rule system ────────────────────────────────────────────────────────
 
-const NEUTRAL = "#F5F0E8";
-
-type ColorRule =
-  | { type: "NEUTRAL" }
-  | { type: "FREE" }
-  | { type: "CONTRAST"; of: string }
-  | { type: "SHADE_DARK"; of: string; amount?: number }
-  | { type: "SHADE_LIGHT"; of: string; amount?: number };
-
 function resolveSlots(rules: Record<string, ColorRule>, freeColors: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [slot, rule] of Object.entries(rules)) {
@@ -136,36 +132,6 @@ function resolveInverted(rules: Record<string, ColorRule>, freeColors: Record<st
     if (rule.type === "SHADE_LIGHT") out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
   }
   return out;
-}
-
-// ─── Secondary block mode ─────────────────────────────────────────────────────
-
-type SecondaryMode =
-  | { type: "none" }
-  | { type: "neutral" }
-  | { type: "contrast" }
-  | { type: "inverted" }
-  | { type: "block"; defIdx: number };
-
-// ─── Sashing ──────────────────────────────────────────────────────────────────
-//
-// Sashing strips run at interior block boundaries — every tileW-th column and/or
-// every tileH-th row (excluding the outer edges). The strip is 1 square wide,
-// the same cut size as the block squares. Color is either cream (neutral) or the
-// auto-derived contrast of the primary free color.
-
-interface SashingConfig {
-  layout: "none" | "columns" | "rows" | "both";
-  color:  "neutral" | "contrast";
-}
-
-// ─── Block type ───────────────────────────────────────────────────────────────
-
-interface BlockDef {
-  key: string; label: string; description: string;
-  tileW: number; tileH: number; grid: string[];
-  colorRules: Record<string, ColorRule>;
-  freeSlots: string[];
 }
 
 // ─── Pattern engine ───────────────────────────────────────────────────────────
@@ -278,199 +244,6 @@ function generatePattern(
   });
 }
 
-// ─── Block definitions ────────────────────────────────────────────────────────
-
-const BLOCK_DEFS: BlockDef[] = [
-  {
-    key: "fourpatch", label: "4-Patch",
-    description: "Two alternating squares — the essential quilting building block",
-    tileW: 2, tileH: 2, grid: ["A","B","B","A"],
-    colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
-    freeSlots: ["A"],
-  },
-  {
-    key: "ninepatch-x", label: "9-Patch X",
-    description: "Nine squares where the diagonal positions form an X",
-    tileW: 3, tileH: 3, grid: ["A","B","A","B","A","B","A","B","A"],
-    colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
-    freeSlots: ["A"],
-  },
-  {
-    key: "ninepatch-o", label: "9-Patch O",
-    description: "Nine squares where the edge positions form an O",
-    tileW: 3, tileH: 3, grid: ["A","B","A","B","A","B","A","B","A"],
-    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
-    freeSlots: ["B"],
-  },
-  {
-    key: "ninepatch-plus", label: "9-Patch +",
-    description: "Nine squares where the cross positions form a +",
-    tileW: 3, tileH: 3, grid: ["A","B","A","B","B","B","A","B","A"],
-    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
-    freeSlots: ["B"],
-  },
-  {
-    key: "sixteenpatch", label: "16-Patch",
-    description: "Sixteen alternating squares in two tonal values",
-    tileW: 4, tileH: 4,
-    grid: ["A","B","A","B","B","A","B","A","A","B","A","B","B","A","B","A"],
-    colorRules: { A: { type: "FREE" }, B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 } },
-    freeSlots: ["A"],
-  },
-  {
-    key: "twentyfivepatch", label: "25-Patch",
-    description: "Twenty-five alternating squares in two tonal values",
-    tileW: 5, tileH: 5,
-    grid: [
-      "A","B","A","B","A",
-      "B","A","B","A","B",
-      "A","B","A","B","A",
-      "B","A","B","A","B",
-      "A","B","A","B","A",
-    ],
-    colorRules: { A: { type: "FREE" }, B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 } },
-    freeSlots: ["A"],
-  },
-  {
-    key: "grannysquare", label: "Granny Square",
-    description: "Four concentric rings radiating outward from center",
-    tileW: 5, tileH: 5,
-    grid: [
-      "D","D","C","D","D",
-      "D","C","B","C","D",
-      "C","B","A","B","C",
-      "D","C","B","C","D",
-      "D","D","C","D","D",
-    ],
-    colorRules: {
-      A: { type: "FREE" },
-      B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 },
-      C: { type: "SHADE_DARK",  of: "A", amount: 0.38 },
-      D: { type: "NEUTRAL" },
-    },
-    freeSlots: ["A"],
-  },
-  {
-    key: "gingham1", label: "Gingham Classic",
-    description: "Woven-look check built from three tonal values",
-    tileW: 2, tileH: 2, grid: ["A","B","B","C"],
-    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_DARK", of: "B", amount: 0.38 } },
-    freeSlots: ["B"],
-  },
-  {
-    key: "gingham2", label: "Gingham Rich",
-    description: "Four-value woven check with added tonal depth",
-    tileW: 2, tileH: 2, grid: ["A","B","C","D"],
-    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" }, C: { type: "SHADE_LIGHT", of: "B", amount: 0.45 }, D: { type: "SHADE_DARK", of: "B", amount: 0.38 } },
-    freeSlots: ["B"],
-  },
-];
-
-// ─── Curated palettes ─────────────────────────────────────────────────────────
-
-interface Palette { label: string; emoji: string; colors: Record<string, string>; }
-
-const PALETTES: Palette[] = [
-  { label: "Navy",       emoji: "🌊", colors: { A: "#1C3A6B", B: "#1C3A6B" } },
-  { label: "Terracotta", emoji: "🏺", colors: { A: "#C2683A", B: "#C2683A" } },
-  { label: "Sage",       emoji: "🌿", colors: { A: "#4A6B4A", B: "#4A6B4A" } },
-  { label: "Teal",       emoji: "🦚", colors: { A: "#1E5F6B", B: "#1E5F6B" } },
-  { label: "Berry",      emoji: "🫐", colors: { A: "#6B2060", B: "#6B2060" } },
-  { label: "Gold",       emoji: "✨", colors: { A: "#8B6400", B: "#8B6400" } },
-  { label: "Crimson",    emoji: "❤️", colors: { A: "#C41E3A", B: "#C41E3A" } },
-  { label: "Slate",      emoji: "🩶", colors: { A: "#4A5568", B: "#4A5568" } },
-  { label: "Plum",       emoji: "🍇", colors: { A: "#7B2D8B", B: "#7B2D8B" } },
-  { label: "Olive",      emoji: "🫒", colors: { A: "#5C6B1E", B: "#5C6B1E" } },
-  { label: "Rose",       emoji: "🌸", colors: { A: "#B5467A", B: "#B5467A" } },
-  { label: "Cocoa",      emoji: "☕", colors: { A: "#6B3A1E", B: "#6B3A1E" } },
-];
-
-// ─── Kona color library ───────────────────────────────────────────────────────
-
-interface KonaColor { name: string; hex: string; family: string; }
-
-const KONA_FAMILIES = ["Neutral", "Blue", "Green", "Yellow", "Orange", "Pink/Red", "Purple", "Brown"];
-
-const KONA_COLORS: KonaColor[] = [
-  // Neutrals
-  { name: "White",       hex: "#FFFFFF", family: "Neutral" },
-  { name: "Snow",        hex: "#F8F4F0", family: "Neutral" },
-  { name: "Parchment",   hex: "#F2E8D8", family: "Neutral" },
-  { name: "Bone",        hex: "#E8DFD0", family: "Neutral" },
-  { name: "Sand",        hex: "#D4C4A8", family: "Neutral" },
-  { name: "Stone",       hex: "#A89880", family: "Neutral" },
-  { name: "Ash",         hex: "#C0B8B0", family: "Neutral" },
-  { name: "Charcoal",    hex: "#4A4540", family: "Neutral" },
-  { name: "Coal",        hex: "#2A2420", family: "Neutral" },
-  { name: "Black",       hex: "#1A1410", family: "Neutral" },
-  // Blues
-  { name: "Powder",      hex: "#B8D4E8", family: "Blue" },
-  { name: "Sky",         hex: "#87B8D4", family: "Blue" },
-  { name: "Periwinkle",  hex: "#7890C8", family: "Blue" },
-  { name: "Cornflower",  hex: "#5878B8", family: "Blue" },
-  { name: "Bluebell",    hex: "#4060A8", family: "Blue" },
-  { name: "Denim",       hex: "#2A4878", family: "Blue" },
-  { name: "Navy",        hex: "#1C3060", family: "Blue" },
-  { name: "Midnight",    hex: "#101830", family: "Blue" },
-  { name: "Teal",        hex: "#1E5F6B", family: "Blue" },
-  { name: "Peacock",     hex: "#2A7890", family: "Blue" },
-  // Greens
-  { name: "Mint",        hex: "#A8D8B8", family: "Green" },
-  { name: "Sage",        hex: "#7A9870", family: "Green" },
-  { name: "Fern",        hex: "#4A7848", family: "Green" },
-  { name: "Moss",        hex: "#4A6040", family: "Green" },
-  { name: "Leaf",        hex: "#3A6830", family: "Green" },
-  { name: "Forest",      hex: "#284820", family: "Green" },
-  { name: "Olive",       hex: "#5C6B1E", family: "Green" },
-  { name: "Artichoke",   hex: "#788048", family: "Green" },
-  { name: "Avocado",     hex: "#506030", family: "Green" },
-  // Yellows & Golds
-  { name: "Butter",      hex: "#F8E890", family: "Yellow" },
-  { name: "Sunshine",    hex: "#F0C830", family: "Yellow" },
-  { name: "Gold",        hex: "#C89810", family: "Yellow" },
-  { name: "Amber",       hex: "#B07808", family: "Yellow" },
-  { name: "Honey",       hex: "#D08820", family: "Yellow" },
-  { name: "Maize",       hex: "#E0A828", family: "Yellow" },
-  // Oranges
-  { name: "Melon",       hex: "#F0A878", family: "Orange" },
-  { name: "Peach",       hex: "#F0C0A0", family: "Orange" },
-  { name: "Tangerine",   hex: "#E87830", family: "Orange" },
-  { name: "Terra Cotta", hex: "#C2683A", family: "Orange" },
-  { name: "Rust",        hex: "#A04820", family: "Orange" },
-  { name: "Sienna",      hex: "#8B4513", family: "Orange" },
-  { name: "Cayenne",     hex: "#A03018", family: "Orange" },
-  // Reds & Pinks
-  { name: "Blush",       hex: "#F0B8C0", family: "Pink/Red" },
-  { name: "Flamingo",    hex: "#F08898", family: "Pink/Red" },
-  { name: "Rose",        hex: "#D85878", family: "Pink/Red" },
-  { name: "Cerise",      hex: "#C03060", family: "Pink/Red" },
-  { name: "Crimson",     hex: "#B81838", family: "Pink/Red" },
-  { name: "Scarlet",     hex: "#C82020", family: "Pink/Red" },
-  { name: "Red",         hex: "#B01818", family: "Pink/Red" },
-  { name: "Watermelon",  hex: "#D84860", family: "Pink/Red" },
-  { name: "Coral",       hex: "#E87060", family: "Pink/Red" },
-  { name: "Candy Pink",  hex: "#E87898", family: "Pink/Red" },
-  // Purples
-  { name: "Lavender",    hex: "#C8B8E0", family: "Purple" },
-  { name: "Wisteria",    hex: "#A890C8", family: "Purple" },
-  { name: "Lilac",       hex: "#9878B8", family: "Purple" },
-  { name: "Grape",       hex: "#7850A0", family: "Purple" },
-  { name: "Plum",        hex: "#602880", family: "Purple" },
-  { name: "Eggplant",    hex: "#401858", family: "Purple" },
-  { name: "Berry",       hex: "#6B2060", family: "Purple" },
-  { name: "Magenta",     hex: "#A02878", family: "Purple" },
-  { name: "Orchid",      hex: "#C058A0", family: "Purple" },
-  // Browns
-  { name: "Linen",       hex: "#E8D8C0", family: "Brown" },
-  { name: "Wheat",       hex: "#D8C098", family: "Brown" },
-  { name: "Tan",         hex: "#C09868", family: "Brown" },
-  { name: "Camel",       hex: "#A87840", family: "Brown" },
-  { name: "Brown",       hex: "#785030", family: "Brown" },
-  { name: "Chocolate",   hex: "#503018", family: "Brown" },
-  { name: "Cocoa",       hex: "#6B3A1E", family: "Brown" },
-  { name: "Espresso",    hex: "#301808", family: "Brown" },
-];
-
 // ─── Studio nav ───────────────────────────────────────────────────────────────
 
 function StudioNav() {
@@ -522,9 +295,12 @@ export default function StudioPage() {
 
   // ── Grid ─────────────────────────────────────────────────────────────────
   const [activeGridIdx, setActiveGridIdx]   = useState(1);
-  const [isCustomGrid, setIsCustomGrid]     = useState(false);
-  const [customCols, setCustomCols]         = useState(15);
-  const [customRows, setCustomRows]         = useState(12);
+  const [isCustomGrid, setIsCustomGrid]     = useState(true);
+  const [customCols, setCustomCols]         = useState(BLOCK_DEFS[0].defaultCols);
+  const [customRows, setCustomRows]         = useState(BLOCK_DEFS[0].defaultRows);
+  // renderedCols/Rows track what's actually built — may differ from picker while transitioning
+  const [renderedCols, setRenderedCols]     = useState(BLOCK_DEFS[0].defaultCols);
+  const [renderedRows, setRenderedRows]     = useState(BLOCK_DEFS[0].defaultRows);
 
   // ── Square size ───────────────────────────────────────────────────────────
   const [squarePresetIdx, setSquarePresetIdx] = useState(1);
@@ -559,7 +335,7 @@ export default function StudioPage() {
   const activeSquareSize = isCustomSquare
     ? Math.max(0.5, parseFloat(customSquareStr) || 5)
     : SQUARE_PRESETS[squarePresetIdx].value;
-  const { w: finW, h: finH } = quiltFinishedDims(activeCols, activeRows, activeSquareSize);
+  const { w: finW, h: finH } = quiltFinishedDims(renderedCols, renderedRows, activeSquareSize);
   const sizeName = quiltSizeName(finW);
   const activeBlock = BLOCK_DEFS[activeBlockIdx];
 
@@ -597,6 +373,8 @@ export default function StudioPage() {
           colors[slot] = palette.colors[slot] ?? palette.colors.A ?? "#888888";
         });
         setGrid(generatePattern(def, secMode, sashingCfg, cols, rows, colors, isScrappy, isLowVolume, BLOCK_DEFS));
+        setRenderedCols(cols);
+        setRenderedRows(rows);
         setIsTransitioning(false);
       }, animate ? 180 : 0);
     },
@@ -604,8 +382,8 @@ export default function StudioPage() {
   );
 
   useEffect(() => {
-    const { cols, rows } = GRID_PRESETS[1];
-    buildGrid(0, 0, cols, rows, { type: "none" }, { layout: "none", color: "neutral" }, false, false, false);
+    const first = BLOCK_DEFS[0];
+    buildGrid(0, 0, first.defaultCols, first.defaultRows, first.defaultSecondary, { layout: "none", color: "neutral" }, false, false, false);
   }, [buildGrid]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -620,26 +398,23 @@ export default function StudioPage() {
   };
 
   const handleBlockChange = (idx: number) => {
+    const newBlock = BLOCK_DEFS[idx];
+    // Apply this block's smart defaults for secondary mode and grid dimensions
+    const newSec  = newBlock.defaultSecondary;
+    const newCols = newBlock.defaultCols;
+    const newRows = newBlock.defaultRows;
+
     setActiveBlockIdx(idx);
+    setSecondaryMode(newSec);
+    setIsCustomGrid(true);
+    setCustomCols(newCols);
+    setCustomRows(newRows);
     setSquareOverrides({});
     setSelectedSquareIdx(null);
     setPaintModeActive(false);
     overridesHistoryRef.current = [{}]; historyIdxRef.current = 0; setHistoryIdx(0);
-    // If secondary "block" mode is no longer compatible with the new primary, reset it
-    let newSec = secondaryMode;
-    if (secondaryMode.type === "block") {
-      const newPrimary = BLOCK_DEFS[idx];
-      const secDef = BLOCK_DEFS[secondaryMode.defIdx];
-      if (
-        secDef.tileW !== newPrimary.tileW ||
-        secDef.tileH !== newPrimary.tileH ||
-        secondaryMode.defIdx === idx
-      ) {
-        newSec = { type: "none" };
-        setSecondaryMode(newSec);
-      }
-    }
-    buildGrid(idx, activePaletteIdx, activeCols, activeRows, newSec, sashing, scrappy, lowVolume);
+
+    buildGrid(idx, activePaletteIdx, newCols, newRows, newSec, sashing, scrappy, lowVolume);
   };
 
   const handlePaletteChange = (idx: number) => {
@@ -1225,14 +1000,14 @@ export default function StudioPage() {
             {/* Pattern grid */}
             <div
               className="w-full rounded-2xl overflow-hidden shadow-2xl border border-black/5"
-              style={{ aspectRatio: `${activeCols} / ${activeRows}`, maxWidth: "min(100%, 800px)" }}
+              style={{ aspectRatio: `${renderedCols} / ${renderedRows}`, maxWidth: "min(100%, 800px)" }}
             >
               <div
                 className="w-full h-full"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: `repeat(${activeCols}, 1fr)`,
-                  gridTemplateRows: `repeat(${activeRows}, 1fr)`,
+                  gridTemplateColumns: `repeat(${renderedCols}, 1fr)`,
+                  gridTemplateRows: `repeat(${renderedRows}, 1fr)`,
                 }}
               >
                 {grid.map((color, i) => {
@@ -1275,7 +1050,7 @@ export default function StudioPage() {
                 </span>
               </div>
               <p className="text-xs text-[#A8A29E] tabular-nums">
-                {activeCols} × {activeRows} grid &nbsp;·&nbsp; {activeCols * activeRows} squares &nbsp;·&nbsp; {fmtIn(activeSquareSize)} squares &nbsp;·&nbsp; {fmtIn(finishedSq(activeSquareSize))} finished
+                {renderedCols} × {renderedRows} grid &nbsp;·&nbsp; {renderedCols * renderedRows} squares &nbsp;·&nbsp; {fmtIn(activeSquareSize)} squares &nbsp;·&nbsp; {fmtIn(finishedSq(activeSquareSize))} finished
               </p>
             </div>
 
