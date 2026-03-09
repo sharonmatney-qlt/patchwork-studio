@@ -61,14 +61,11 @@ function Hero() {
           </div>
 
           <h1 className="text-5xl lg:text-6xl font-bold text-[#1C1917] leading-[1.1] tracking-tight mb-6">
-            Patchwork patterns<br />designed by you.<br />
-            Play with blocks, color, and scale —<br />
-            <span className="text-[#C2683A]">before you cut into your fabric.</span>
+            Patchwork patterns designed by <span className="text-[#C2683A]">you.</span>
           </h1>
 
           <p className="text-lg text-[#78716C] leading-relaxed mb-8 max-w-md">
-            For quilters of every skill level. Designed for charm squares,
-            layer cakes, jelly rolls, and fat quarters — or whatever&apos;s in your stash.
+            Play with blocks, color, and scale — before you cut into your fabric.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
