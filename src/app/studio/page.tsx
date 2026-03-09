@@ -48,6 +48,39 @@ function lowVolumeNudge(hex: string, seed: number): string {
   return p[Math.floor(rng(seed)*p.length)];
 }
 
+// ─── Scrappy print-simulation patterns ───────────────────────────────────────
+// Each entry is a tiny repeating SVG tile applied as a background-image overlay
+// on scrappy squares — giving the impression of woven / printed fabric texture.
+
+function buildPatternUri(svg: string): string {
+  const encoded = svg.replace(/"/g, "'").replace(/#/g, "%23");
+  return `url("data:image/svg+xml,${encoded}")`;
+}
+
+const PRINT_PATTERNS: string[] = [
+  // Fine dots
+  buildPatternUri(`<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><circle cx="4" cy="4" r="1.2" fill="rgba(0,0,0,0.22)"/></svg>`),
+  // Diagonal stripes
+  buildPatternUri(`<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6"><path d="M-1 7L7-1M-1 3L3-1M3 7L7 3" stroke="rgba(0,0,0,0.20)" stroke-width="1" fill="none"/></svg>`),
+  // Crosshatch
+  buildPatternUri(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><path d="M0 0L10 10M10 0L0 10" stroke="rgba(0,0,0,0.18)" stroke-width="0.8" fill="none"/></svg>`),
+  // Scattered speckle
+  buildPatternUri(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="2" cy="3" r="0.9" fill="rgba(0,0,0,0.25)"/><circle cx="7" cy="8" r="0.7" fill="rgba(0,0,0,0.20)"/><circle cx="8" cy="2" r="1" fill="rgba(0,0,0,0.22)"/></svg>`),
+  // Short dashes
+  buildPatternUri(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 3h4" stroke="rgba(0,0,0,0.25)" stroke-width="1" stroke-linecap="round" fill="none"/></svg>`),
+  // Woven grid
+  buildPatternUri(`<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6"><path d="M0 3h6M3 0v6" stroke="rgba(0,0,0,0.14)" stroke-width="0.6" fill="none"/></svg>`),
+  // Multi-scatter
+  buildPatternUri(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"><circle cx="3" cy="4" r="0.8" fill="rgba(0,0,0,0.25)"/><circle cx="9" cy="2" r="0.7" fill="rgba(0,0,0,0.20)"/><circle cx="6" cy="9" r="0.9" fill="rgba(0,0,0,0.22)"/><circle cx="10" cy="7" r="0.7" fill="rgba(0,0,0,0.18)"/></svg>`),
+  // Diagonal dashes
+  buildPatternUri(`<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><path d="M1 7l2-4M5 7l2-4" stroke="rgba(0,0,0,0.22)" stroke-width="0.9" stroke-linecap="round" fill="none"/></svg>`),
+];
+
+function getPrintPattern(squareIdx: number): string {
+  const rng = ((Math.sin(squareIdx * 91.3 + 47.2) * 43758.5453) % 1 + 1) % 1;
+  return PRINT_PATTERNS[Math.floor(rng * PRINT_PATTERNS.length)];
+}
+
 // ─── Quilt size helpers ───────────────────────────────────────────────────────
 
 function finishedSq(cutIn: number): number { return cutIn - 0.5; }
@@ -1013,6 +1046,7 @@ export default function StudioPage() {
                 {grid.map((color, i) => {
                   const displayColor = squareOverrides[i] ?? color;
                   const isSelected = !paintModeActive && selectedSquareIdx === i;
+                  const printPattern = scrappy ? getPrintPattern(i) : undefined;
                   return (
                     <div
                       key={i}
@@ -1027,6 +1061,8 @@ export default function StudioPage() {
                       }}
                       style={{
                         backgroundColor: displayColor,
+                        backgroundImage: printPattern,
+                        backgroundRepeat: printPattern ? "repeat" : undefined,
                         transition: isTransitioning
                           ? `background-color ${0.05 + (i % 16) * 0.008}s ease`
                           : "background-color 0.25s ease",
