@@ -48,6 +48,61 @@ function lowVolumeNudge(hex: string, seed: number): string {
   return p[Math.floor(rng(seed)*p.length)];
 }
 
+// ─── Color wash utilities (ombré + rainbow) ───────────────────────────────────
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  const l = (max+min)/2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+  let h = 0;
+  if (max === r)      h = ((g-b)/d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b-r)/d + 2) / 6;
+  else                h = ((r-g)/d + 4) / 6;
+  return { h: h*360, s, l };
+}
+function hslToHex(h: number, s: number, l: number): string {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2*l-1)) * s;
+  const x = c * (1 - Math.abs((h/60) % 2 - 1));
+  const m = l - c/2;
+  let r=0, g=0, b=0;
+  if      (h < 60)  { r=c; g=x; b=0; }
+  else if (h < 120) { r=x; g=c; b=0; }
+  else if (h < 180) { r=0; g=c; b=x; }
+  else if (h < 240) { r=0; g=x; b=c; }
+  else if (h < 300) { r=x; g=0; b=c; }
+  else              { r=c; g=0; b=x; }
+  const toHex = (n: number) => Math.round((n+m)*255).toString(16).padStart(2,"0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+function lerpColor(a: string, b: string, t: number): string {
+  const ar=parseInt(a.slice(1,3),16), ag=parseInt(a.slice(3,5),16), ab=parseInt(a.slice(5,7),16);
+  const br=parseInt(b.slice(1,3),16), bg=parseInt(b.slice(3,5),16), bb=parseInt(b.slice(5,7),16);
+  const toHex = (n: number) => Math.round(n).toString(16).padStart(2,"0");
+  return `#${toHex(ar+(br-ar)*t)}${toHex(ag+(bg-ag)*t)}${toHex(ab+(bb-ab)*t)}`;
+}
+// Diagonal wash: top-left = base color, bottom-right = 42% lighter
+function ombreColor(base: string, col: number, row: number, cols: number, rows: number): string {
+  const t = (cols > 1 && rows > 1)
+    ? (col/(cols-1) + row/(rows-1)) / 2
+    : 0;
+  return lerpColor(base, "#FFFFFF", t * 0.42);
+}
+// Diagonal rainbow: hue sweeps 300° from base color's starting hue
+function rainbowColor(base: string, col: number, row: number, cols: number, rows: number): string {
+  const t = (cols > 1 && rows > 1)
+    ? (col/(cols-1) + row/(rows-1)) / 2
+    : 0;
+  const { h, s, l } = hexToHsl(base);
+  const newH = (h + t * 300) % 360;
+  // Ensure enough saturation and a pleasant mid lightness for vivid rainbow
+  return hslToHex(newH, Math.max(s, 0.60), Math.min(Math.max(l, 0.42), 0.65));
+}
+
 // ─── Scrappy print-simulation patterns ───────────────────────────────────────
 // Each entry is a tiny repeating SVG tile applied as a background-image overlay
 // on scrappy squares — giving the impression of woven / printed fabric texture.
@@ -184,6 +239,7 @@ function generatePattern(
   cols: number, rows: number,
   freeColors: Record<string, string>,
   scrappy: boolean, lowVolume: boolean,
+  primMode: "solid" | "ombre" | "rainbow",
   blockDefs: BlockDef[]   // passed in to avoid circular reference
 ): string[] {
   const primaryResolved  = resolveSlots(primary.colorRules, freeColors);
@@ -205,6 +261,13 @@ function generatePattern(
   const sashBase = sashing.layout !== "none"
     ? (sashing.color === "neutral" ? NEUTRAL : contrastFill)
     : null;
+
+  // Apply ombré or rainbow wash to a FREE-colored square at its grid position
+  const applyWash = (base: string, col: number, row: number): string => {
+    if (primMode === "ombre")   return ombreColor(base, col, row, cols, rows);
+    if (primMode === "rainbow") return rainbowColor(base, col, row, cols, rows);
+    return base;
+  };
 
   return Array.from({ length: cols * rows }, (_, i) => {
     const row = Math.floor(i / cols);
@@ -236,9 +299,12 @@ function generatePattern(
 
     if (isPrimary) {
       const slot = primary.grid[pos];
-      const base = primaryResolved[slot] ?? "#CCCCCC";
       const rule = primary.colorRules[slot];
-      if (scrappy   && rule?.type === "FREE")    return scrappyNudge(base, i*7+col*13+row*31);
+      let base = primaryResolved[slot] ?? "#CCCCCC";
+      if (rule?.type === "FREE") {
+        base = applyWash(base, col, row);
+        if (scrappy) return scrappyNudge(base, i*7+col*13+row*31);
+      }
       if (lowVolume && rule?.type === "NEUTRAL") return lowVolumeNudge(base, i*11+col*17+row*23);
       return base;
     }
@@ -255,20 +321,25 @@ function generatePattern(
       }
       case "inverted": {
         const slot = primary.grid[pos];
-        const base = invertedResolved![slot] ?? "#CCCCCC";
         const origRule = primary.colorRules[slot];
-        // Roles are swapped: scrappy applies to originally-NEUTRAL (now colored) slots,
-        // lowVolume applies to originally-FREE (now cream) slots
-        if (scrappy   && origRule?.type === "NEUTRAL") return scrappyNudge(base, i*7+col*13+row*31);
-        if (lowVolume && origRule?.type === "FREE")    return lowVolumeNudge(base, i*11+col*17+row*23);
+        let base = invertedResolved![slot] ?? "#CCCCCC";
+        // In inverted, the originally-NEUTRAL slots now display the free color — apply wash there
+        if (origRule?.type === "NEUTRAL") {
+          base = applyWash(base, col, row);
+          if (scrappy) return scrappyNudge(base, i*7+col*13+row*31);
+        }
+        if (lowVolume && origRule?.type === "FREE") return lowVolumeNudge(base, i*11+col*17+row*23);
         return base;
       }
       case "block": {
         const sd = secondaryDef!;
         const slot = sd.grid[pos]; // compatible blocks share tileW/tileH so pos is valid
-        const base = secondaryRes![slot] ?? "#CCCCCC";
         const rule = sd.colorRules[slot];
-        if (scrappy   && rule?.type === "FREE")    return scrappyNudge(base, i*7+col*13+row*31);
+        let base = secondaryRes![slot] ?? "#CCCCCC";
+        if (rule?.type === "FREE") {
+          base = applyWash(base, col, row);
+          if (scrappy) return scrappyNudge(base, i*7+col*13+row*31);
+        }
         if (lowVolume && rule?.type === "NEUTRAL") return lowVolumeNudge(base, i*11+col*17+row*23);
         return base;
       }
@@ -343,6 +414,7 @@ export default function StudioPage() {
   // ── Variations + UI ──────────────────────────────────────────────────────
   const [scrappy, setScrappy]             = useState(false);
   const [lowVolume, setLowVolume]         = useState(false);
+  const [primaryMode, setPrimaryMode]     = useState<"solid" | "ombre" | "rainbow">("solid");
   const [grid, setGrid]                   = useState<string[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [savedCount, setSavedCount]       = useState(0);
@@ -392,6 +464,7 @@ export default function StudioPage() {
       sashingCfg: SashingConfig,
       isScrappy: boolean,
       isLowVolume: boolean,
+      primMode: "solid" | "ombre" | "rainbow" = "solid",
       animate = true
     ) => {
       if (animate) setIsTransitioning(true);
@@ -405,7 +478,7 @@ export default function StudioPage() {
         def.freeSlots.forEach((slot) => {
           colors[slot] = palette.colors[slot] ?? palette.colors.A ?? "#888888";
         });
-        setGrid(generatePattern(def, secMode, sashingCfg, cols, rows, colors, isScrappy, isLowVolume, BLOCK_DEFS));
+        setGrid(generatePattern(def, secMode, sashingCfg, cols, rows, colors, isScrappy, isLowVolume, primMode, BLOCK_DEFS));
         setRenderedCols(cols);
         setRenderedRows(rows);
         setIsTransitioning(false);
@@ -416,7 +489,7 @@ export default function StudioPage() {
 
   useEffect(() => {
     const first = BLOCK_DEFS[0];
-    buildGrid(0, 0, first.defaultCols, first.defaultRows, first.defaultSecondary, { layout: "none", color: "neutral" }, false, false, false);
+    buildGrid(0, 0, first.defaultCols, first.defaultRows, first.defaultSecondary, { layout: "none", color: "neutral" }, false, false, "solid", false);
   }, [buildGrid]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -427,7 +500,7 @@ export default function StudioPage() {
     setSelectedSquareIdx(null);
     setPaintModeActive(false);
     overridesHistoryRef.current = [{}]; historyIdxRef.current = 0; setHistoryIdx(0);
-    buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, nextPalette, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume, primaryMode);
   };
 
   const handleBlockChange = (idx: number) => {
@@ -447,7 +520,7 @@ export default function StudioPage() {
     setPaintModeActive(false);
     overridesHistoryRef.current = [{}]; historyIdxRef.current = 0; setHistoryIdx(0);
 
-    buildGrid(idx, activePaletteIdx, newCols, newRows, newSec, sashing, scrappy, lowVolume);
+    buildGrid(idx, activePaletteIdx, newCols, newRows, newSec, sashing, scrappy, lowVolume, primaryMode);
   };
 
   const handlePaletteChange = (idx: number) => {
@@ -456,7 +529,7 @@ export default function StudioPage() {
     setSelectedSquareIdx(null);
     setPaintModeActive(false);
     overridesHistoryRef.current = [{}]; historyIdxRef.current = 0; setHistoryIdx(0);
-    buildGrid(activeBlockIdx, idx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, idx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume, primaryMode);
   };
 
   const handleSecondaryMode = (modeType: SecondaryMode["type"]) => {
@@ -468,26 +541,26 @@ export default function StudioPage() {
       newSec = { type: modeType };
     }
     setSecondaryMode(newSec);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, sashing, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, sashing, scrappy, lowVolume, primaryMode);
   };
 
   const handleSecondaryBlockSelect = (defIdx: number) => {
     const newSec: SecondaryMode = { type: "block", defIdx };
     setSecondaryMode(newSec);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, sashing, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, newSec, sashing, scrappy, lowVolume, primaryMode);
   };
 
   const handleSashingLayout = (layout: SashingConfig["layout"]) => {
     const next: SashingConfig = { ...sashing, layout };
     setSashing(next);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, next, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, next, scrappy, lowVolume, primaryMode);
   };
 
   const handleSashingColor = (color: SashingConfig["color"]) => {
     const next: SashingConfig = { ...sashing, color };
     setSashing(next);
     if (sashing.layout !== "none") {
-      buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, next, scrappy, lowVolume);
+      buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, next, scrappy, lowVolume, primaryMode);
     }
   };
 
@@ -495,13 +568,13 @@ export default function StudioPage() {
     setActiveGridIdx(idx);
     setIsCustomGrid(false);
     const { cols, rows } = GRID_PRESETS[idx];
-    buildGrid(activeBlockIdx, activePaletteIdx, cols, rows, secondaryMode, sashing, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, cols, rows, secondaryMode, sashing, scrappy, lowVolume, primaryMode);
   };
 
   const handleCustomGridSelect = () => {
     if (!isCustomGrid) {
       setIsCustomGrid(true);
-      buildGrid(activeBlockIdx, activePaletteIdx, customCols, customRows, secondaryMode, sashing, scrappy, lowVolume);
+      buildGrid(activeBlockIdx, activePaletteIdx, customCols, customRows, secondaryMode, sashing, scrappy, lowVolume, primaryMode);
     }
   };
 
@@ -509,14 +582,14 @@ export default function StudioPage() {
     const v = Math.max(3, Math.min(30, val));
     setCustomCols(v);
     setIsCustomGrid(true);
-    buildGrid(activeBlockIdx, activePaletteIdx, v, customRows, secondaryMode, sashing, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, v, customRows, secondaryMode, sashing, scrappy, lowVolume, primaryMode);
   };
 
   const handleCustomRows = (val: number) => {
     const v = Math.max(3, Math.min(25, val));
     setCustomRows(v);
     setIsCustomGrid(true);
-    buildGrid(activeBlockIdx, activePaletteIdx, customCols, v, secondaryMode, sashing, scrappy, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, customCols, v, secondaryMode, sashing, scrappy, lowVolume, primaryMode);
   };
 
   const handleSquarePreset = (idx: number) => {
@@ -526,12 +599,17 @@ export default function StudioPage() {
 
   const handleScrappyChange = (val: boolean) => {
     setScrappy(val);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, val, lowVolume);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, val, lowVolume, primaryMode);
   };
 
   const handleLowVolumeChange = (val: boolean) => {
     setLowVolume(val);
-    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, scrappy, val);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, scrappy, val, primaryMode);
+  };
+
+  const handlePrimaryModeChange = (mode: "solid" | "ombre" | "rainbow") => {
+    setPrimaryMode(mode);
+    buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume, mode);
   };
 
   const handleSave = () => {
@@ -944,6 +1022,26 @@ export default function StudioPage() {
               <div className="space-y-2.5">
                 <Toggle label="Scrappy"    description="Tonal variety in colored squares"    checked={scrappy}    onChange={handleScrappyChange} />
                 <Toggle label="Low Volume" description="Varied creams instead of one neutral" checked={lowVolume} onChange={handleLowVolumeChange} />
+
+                {/* Color Wash — mutually exclusive; applies a diagonal wash to FREE squares */}
+                <div className="pt-0.5">
+                  <div className="text-[11px] text-[#A8A29E] font-medium tracking-wide uppercase mb-1.5">Color Wash</div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(["solid", "ombre", "rainbow"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => handlePrimaryModeChange(mode)}
+                        className={`py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                          primaryMode === mode
+                            ? "bg-[#1C1917] text-white shadow-sm"
+                            : "bg-[#F5F5F4] text-[#78716C] hover:bg-[#EDEBE9] hover:text-[#1C1917]"
+                        }`}
+                      >
+                        {mode === "solid" ? "Solid" : mode === "ombre" ? "Ombré" : "Rainbow"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -957,7 +1055,7 @@ export default function StudioPage() {
                 Generate new palette
               </button>
               <button
-                onClick={() => buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume)}
+                onClick={() => buildGrid(activeBlockIdx, activePaletteIdx, activeCols, activeRows, secondaryMode, sashing, scrappy, lowVolume, primaryMode)}
                 className="w-full border border-[#E7E5E4] text-[#78716C] text-sm py-2.5 rounded-xl hover:border-[#C2683A] hover:text-[#C2683A] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw size={13} />
