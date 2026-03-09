@@ -2,60 +2,92 @@
 
 import { useEffect, useState, useCallback } from "react";
 
-// ─── Color utilities ───────────────────────────────────────────────────────
+// ─── Color utilities ──────────────────────────────────────────────────────────
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
-  return [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ];
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
 }
-
 function rgbToHex(r: number, g: number, b: number): string {
-  return (
-    "#" +
-    [r, g, b]
-      .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0"))
-      .join("")
-  );
+  return "#" + [r,g,b].map((v) => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
 }
-
 function shadeDark(hex: string, amount = 0.35): string {
-  const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
+  const [r,g,b] = hexToRgb(hex);
+  return rgbToHex(r*(1-amount), g*(1-amount), b*(1-amount));
 }
-
 function shadeLight(hex: string, amount = 0.45): string {
-  const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(
-    r + (255 - r) * amount,
-    g + (255 - g) * amount,
-    b + (255 - b) * amount
-  );
+  const [r,g,b] = hexToRgb(hex);
+  return rgbToHex(r+(255-r)*amount, g+(255-g)*amount, b+(255-b)*amount);
 }
 
-/**
- * Compute a high-contrast companion to a given color.
- * Light colors → strongly darkened; dark colors → strongly lightened.
- */
-function contrastColor(hex: string): string {
-  const [r, g, b] = hexToRgb(hex);
-  // Perceived luminance (ITU-R BT.601)
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return lum > 0.45 ? shadeDark(hex, 0.72) : shadeLight(hex, 0.78);
+// ─── Ombré & Rainbow wash utilities ──────────────────────────────────────────
+
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  const l = (max+min)/2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+  let h = 0;
+  if (max === r)      h = ((g-b)/d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b-r)/d + 2) / 6;
+  else                h = ((r-g)/d + 4) / 6;
+  return { h: h*360, s, l };
+}
+function hslToHex(h: number, s: number, l: number): string {
+  h = ((h%360)+360)%360;
+  const c = (1-Math.abs(2*l-1))*s;
+  const x = c*(1-Math.abs((h/60)%2-1));
+  const m = l-c/2;
+  let r=0,g=0,b=0;
+  if      (h<60)  {r=c;g=x;b=0;}
+  else if (h<120) {r=x;g=c;b=0;}
+  else if (h<180) {r=0;g=c;b=x;}
+  else if (h<240) {r=0;g=x;b=c;}
+  else if (h<300) {r=x;g=0;b=c;}
+  else            {r=c;g=0;b=x;}
+  const toHex = (n: number) => Math.round((n+m)*255).toString(16).padStart(2,"0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+function lerpColor(a: string, b: string, t: number): string {
+  const ar=parseInt(a.slice(1,3),16),ag=parseInt(a.slice(3,5),16),ab=parseInt(a.slice(5,7),16);
+  const br=parseInt(b.slice(1,3),16),bg=parseInt(b.slice(3,5),16),bb=parseInt(b.slice(5,7),16);
+  const h = (n: number) => Math.round(n).toString(16).padStart(2,"0");
+  return `#${h(ar+(br-ar)*t)}${h(ag+(bg-ag)*t)}${h(ab+(bb-ab)*t)}`;
+}
+function scrappyNudge(hex: string, seed: number): string {
+  const [r,g,b] = hexToRgb(hex);
+  const rng = (s: number) => ((Math.sin(s*127.3+311.7)*43758.5453)%1+1)%1;
+  const amount = 0.08 + rng(seed)*0.14;
+  return rng(seed+1) > 0.5
+    ? rgbToHex(r*(1-amount), g*(1-amount), b*(1-amount))
+    : rgbToHex(r+(255-r)*amount, g+(255-g)*amount, b+(255-b)*amount);
 }
 
-// ─── Color rule system ─────────────────────────────────────────────────────
+function applyWash(
+  base: string,
+  col: number, row: number,
+  cols: number, rows: number,
+  wash: "solid" | "ombre" | "rainbow"
+): string {
+  if (wash === "solid") return base;
+  const t = (cols > 1 && rows > 1) ? (col/(cols-1) + row/(rows-1)) / 2 : 0;
+  if (wash === "ombre") return lerpColor(base, "#FFFFFF", t * 0.42);
+  const { h, s, l } = hexToHsl(base);
+  return hslToHex((h + t*300) % 360, Math.max(s, 0.60), Math.min(Math.max(l, 0.42), 0.65));
+}
+
+// ─── Color rule system ────────────────────────────────────────────────────────
 
 const NEUTRAL = "#F5F0E8";
 
 type ColorRule =
   | { type: "NEUTRAL" }
   | { type: "FREE" }
-  | { type: "CONTRAST"; of: string }
-  | { type: "SHADE_DARK"; of: string; amount?: number }
+  | { type: "SHADE_DARK";  of: string; amount?: number }
   | { type: "SHADE_LIGHT"; of: string; amount?: number };
 
 function resolveSlots(
@@ -63,200 +95,225 @@ function resolveSlots(
   freeColors: Record<string, string>
 ): Record<string, string> {
   const out: Record<string, string> = {};
-
-  // Pass 1 — absolute values: NEUTRAL + FREE
   for (const [slot, rule] of Object.entries(rules)) {
     if (rule.type === "NEUTRAL") out[slot] = NEUTRAL;
     if (rule.type === "FREE")    out[slot] = freeColors[slot] ?? "#888888";
   }
-
-  // Pass 2 — derived: CONTRAST, SHADE_DARK, SHADE_LIGHT (all need pass-1 results)
   for (const [slot, rule] of Object.entries(rules)) {
-    if (rule.type === "CONTRAST")
-      out[slot] = contrastColor(out[rule.of] ?? "#888888");
-    if (rule.type === "SHADE_DARK")
-      out[slot] = shadeDark(out[rule.of] ?? "#888888", rule.amount);
-    if (rule.type === "SHADE_LIGHT")
-      out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
+    if (rule.type === "SHADE_DARK")  out[slot] = shadeDark(out[rule.of]  ?? "#888888", rule.amount);
+    if (rule.type === "SHADE_LIGHT") out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
   }
-
   return out;
 }
 
-// ─── Tile engine ───────────────────────────────────────────────────────────
+// ─── Showcase definitions ─────────────────────────────────────────────────────
 
-interface TileStyleDef {
-  key: string;
-  label: string;
-  tileW: number;
-  tileH: number;
-  grid: string[];
+interface ShowcaseDef {
+  key:        string;
+  label:      string;   // shown in header
+  sublabel:   string;   // shown in header (wash + color)
+  chipLabel:  string;   // shown in selector chip (shorter)
+  tileW:      number;
+  tileH:      number;
+  grid:       string[];
   colorRules: Record<string, ColorRule>;
+  freeSlot:   string;
+  baseColor:  string;
+  wash:       "solid" | "ombre" | "rainbow";
+  scrappy?:   boolean;
 }
 
-function generateTile(
-  def: TileStyleDef,
-  cols: number,
-  rows: number,
-  freeColors: Record<string, string>
-): string[] {
-  const resolved = resolveSlots(def.colorRules, freeColors);
-  return Array.from({ length: cols * rows }, (_, i) => {
-    const r = Math.floor(i / cols);
-    const c = i % cols;
-    const pos = (r % def.tileH) * def.tileW + (c % def.tileW);
-    return resolved[def.grid[pos]] ?? "#CCCCCC";
-  });
-}
+const COLS = 15;
+const ROWS = 15;
 
-// ─── Style definitions ─────────────────────────────────────────────────────
-//
-//  Checkerboard  A B / B A   A=NEUTRAL   B=FREE
-//  Check         A B / B A   A=FREE      B=CONTRAST(A)
-//  Gingham 1     A B / B C   A=NEUTRAL   B=FREE        C=SHADE_DARK(B)
-//  Gingham 2     A B / C D   A=NEUTRAL   B=FREE        C=SHADE_LIGHT(B)  D=SHADE_DARK(B)
-
-const STYLE_DEFS: TileStyleDef[] = [
+const SHOWCASES: ShowcaseDef[] = [
+  // 1 — Granny Square · Ombré · Teal
   {
-    key: "checkerboard",
-    label: "Checkerboard",
-    tileW: 2, tileH: 2,
-    grid: ["A", "B", "B", "A"],
-    colorRules: {
-      A: { type: "NEUTRAL" },
-      B: { type: "FREE" },
-    },
-  },
-  {
-    key: "check",
-    label: "Check",
-    tileW: 2, tileH: 2,
-    grid: ["A", "B", "B", "A"],
+    key: "granny-ombre",
+    label: "Granny Square", sublabel: "Ombré · Teal", chipLabel: "Granny Ombré",
+    tileW: 5, tileH: 5,
+    grid: [
+      "D","D","C","D","D",
+      "D","C","B","C","D",
+      "C","B","A","B","C",
+      "D","C","B","C","D",
+      "D","D","C","D","D",
+    ],
     colorRules: {
       A: { type: "FREE" },
-      B: { type: "CONTRAST", of: "A" },   // ← fixed: was FREE, now CONTRAST(A)
+      B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 },
+      C: { type: "SHADE_DARK",  of: "A", amount: 0.38 },
+      D: { type: "NEUTRAL" },
     },
+    freeSlot: "A", baseColor: "#1B6B8A", wash: "ombre",
   },
+
+  // 2 — 9-Patch X · Rainbow · Coral
   {
-    key: "gingham1",
-    label: "Gingham (Classic)",
+    key: "ninepatch-x-rainbow",
+    label: "9-Patch X", sublabel: "Rainbow · Coral", chipLabel: "9-Patch X",
+    tileW: 3, tileH: 3,
+    grid: ["A","B","A","B","A","B","A","B","A"],
+    colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
+    freeSlot: "A", baseColor: "#C2683A", wash: "rainbow",
+  },
+
+  // 3 — Gingham Classic · Solid · Navy
+  {
+    key: "gingham-classic",
+    label: "Gingham Classic", sublabel: "Solid · Navy", chipLabel: "Gingham",
     tileW: 2, tileH: 2,
-    grid: ["A", "B", "B", "C"],
+    grid: ["A","B","B","C"],
     colorRules: {
       A: { type: "NEUTRAL" },
       B: { type: "FREE" },
       C: { type: "SHADE_DARK", of: "B", amount: 0.38 },
     },
+    freeSlot: "B", baseColor: "#1C3A6B", wash: "solid",
   },
+
+  // 4 — 25-Patch · Ombré · Berry
   {
-    key: "gingham2",
-    label: "Gingham (Rich)",
-    tileW: 2, tileH: 2,
-    grid: ["A", "B", "C", "D"],
+    key: "twentyfive-ombre",
+    label: "25-Patch", sublabel: "Ombré · Berry", chipLabel: "25-Patch",
+    tileW: 5, tileH: 5,
+    grid: [
+      "A","B","A","B","A",
+      "B","A","B","A","B",
+      "A","B","A","B","A",
+      "B","A","B","A","B",
+      "A","B","A","B","A",
+    ],
     colorRules: {
-      A: { type: "NEUTRAL" },
-      B: { type: "FREE" },
-      C: { type: "SHADE_LIGHT", of: "B", amount: 0.45 },
-      D: { type: "SHADE_DARK",  of: "B", amount: 0.38 },
+      A: { type: "FREE" },
+      B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 },
     },
+    freeSlot: "A", baseColor: "#6B2060", wash: "ombre",
+  },
+
+  // 5 — Granny Square · Rainbow · Indigo
+  {
+    key: "granny-rainbow",
+    label: "Granny Square", sublabel: "Rainbow · Indigo", chipLabel: "Granny Rainbow",
+    tileW: 5, tileH: 5,
+    grid: [
+      "D","D","C","D","D",
+      "D","C","B","C","D",
+      "C","B","A","B","C",
+      "D","C","B","C","D",
+      "D","D","C","D","D",
+    ],
+    colorRules: {
+      A: { type: "FREE" },
+      B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 },
+      C: { type: "SHADE_DARK",  of: "A", amount: 0.38 },
+      D: { type: "NEUTRAL" },
+    },
+    freeSlot: "A", baseColor: "#3B2E8C", wash: "rainbow",
+  },
+
+  // 6 — 9-Patch + · Solid · Sage
+  {
+    key: "ninepatch-plus",
+    label: "9-Patch +", sublabel: "Solid · Sage", chipLabel: "9-Patch +",
+    tileW: 3, tileH: 3,
+    grid: ["A","B","A","B","B","B","A","B","A"],
+    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
+    freeSlot: "B", baseColor: "#4A6B4A", wash: "solid",
+  },
+
+  // 7 — 25-Patch · Scrappy · Navy
+  {
+    key: "twentyfive-scrappy",
+    label: "25-Patch", sublabel: "Scrappy · Navy", chipLabel: "Scrappy",
+    tileW: 5, tileH: 5,
+    grid: [
+      "A","B","A","B","A",
+      "B","A","B","A","B",
+      "A","B","A","B","A",
+      "B","A","B","A","B",
+      "A","B","A","B","A",
+    ],
+    colorRules: {
+      A: { type: "FREE" },
+      B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 },
+    },
+    freeSlot: "A", baseColor: "#1C3A6B", wash: "solid", scrappy: true,
   },
 ];
 
-// ─── Demo rotations ────────────────────────────────────────────────────────
-// Only FREE slots need values here — CONTRAST/SHADE_* are auto-derived.
+// ─── Grid generator ───────────────────────────────────────────────────────────
 
-const DEMO_ROTATIONS: { label: string; colors: Record<string, string> }[] = [
-  { label: "Navy",   colors: { A: "#1C3A6B", B: "#1C3A6B" } },
-  { label: "Red",    colors: { A: "#C41E3A", B: "#C41E3A" } },
-  { label: "Sage",   colors: { A: "#4A6B4A", B: "#4A6B4A" } },
-  { label: "Teal",   colors: { A: "#1E5F6B", B: "#1E5F6B" } },
-  { label: "Berry",  colors: { A: "#6B2060", B: "#6B2060" } },
-  { label: "Gold",   colors: { A: "#8B6400", B: "#8B6400" } },
-];
+function generateShowcase(def: ShowcaseDef): string[] {
+  const colors = { [def.freeSlot]: def.baseColor };
+  const resolved = resolveSlots(def.colorRules, colors);
+  return Array.from({ length: COLS * ROWS }, (_, i) => {
+    const row = Math.floor(i / COLS);
+    const col = i % COLS;
+    const tileRow = row % def.tileH;
+    const tileCol = col % def.tileW;
+    const pos  = tileRow * def.tileW + tileCol;
+    const slot = def.grid[pos];
+    const rule = def.colorRules[slot];
+    const base = resolved[slot] ?? "#CCCCCC";
+    if (rule?.type === "FREE") {
+      const washed = applyWash(base, col, row, COLS, ROWS, def.wash);
+      return def.scrappy ? scrappyNudge(washed, i*7 + col*13 + row*31) : washed;
+    }
+    return base;
+  });
+}
 
-// Check only needs A — B is derived via CONTRAST(A)
-const CHECK_ROTATIONS: { label: string; colors: Record<string, string> }[] = [
-  { label: "Navy",   colors: { A: "#1C3A6B" } },
-  { label: "Red",    colors: { A: "#C41E3A" } },
-  { label: "Sage",   colors: { A: "#4A6B4A" } },
-  { label: "Berry",  colors: { A: "#6B2060" } },
-  { label: "Gold",   colors: { A: "#8B6400" } },
-  { label: "Teal",   colors: { A: "#1E5F6B" } },
-];
-
-// 13 × 11 — both odd, so every 2×2 and 3×3 tile starts and ends on the
-// same color slot, giving the pattern a symmetrically framed appearance.
-// 13 cols also satisfies Nine-Patch (12 % 3 === 0, lands back at slot A).
-// Landscape ratio (≈ 1.18 : 1) sits better beside hero text.
-const COLS = 13;
-const ROWS = 11;
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PatchworkPreview() {
-  const [activeStyleIdx, setActiveStyleIdx] = useState(0);
-  const [rotationIdx, setRotationIdx]       = useState(0);
-  const [grid, setGrid]                     = useState<string[]>([]);
+  const [activeIdx, setActiveIdx]             = useState(0);
+  const [grid, setGrid]                       = useState<string[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  const getRotations = useCallback((styleIdx: number) =>
-    STYLE_DEFS[styleIdx].key === "check" ? CHECK_ROTATIONS : DEMO_ROTATIONS,
-  []);
+  const buildGrid = useCallback((idx: number, animate = true) => {
+    if (animate) setIsTransitioning(true);
+    setTimeout(() => {
+      setGrid(generateShowcase(SHOWCASES[idx]));
+      setIsTransitioning(false);
+    }, animate ? 220 : 0);
+  }, []);
 
-  const buildGrid = useCallback(
-    (styleIdx: number, rotIdx: number, animate = true) => {
-      if (animate) setIsTransitioning(true);
-      setTimeout(() => {
-        const def = STYLE_DEFS[styleIdx];
-        const rotations = STYLE_DEFS[styleIdx].key === "check"
-          ? CHECK_ROTATIONS
-          : DEMO_ROTATIONS;
-        const { colors } = rotations[rotIdx % rotations.length];
-        setGrid(generateTile(def, COLS, ROWS, colors));
-        setIsTransitioning(false);
-      }, animate ? 220 : 0);
-    },
-    []
-  );
+  // Initial render (no animation)
+  useEffect(() => { buildGrid(0, false); }, [buildGrid]);
 
-  useEffect(() => { buildGrid(0, 0, false); }, [buildGrid]);
-
+  // Auto-cycle every 5 s
   useEffect(() => {
-    let sIdx = 0, rIdx = 0, ticks = 0;
+    let idx = 0;
     const interval = setInterval(() => {
-      ticks++;
-      rIdx++;
-      if (ticks % 6 === 0) {           // new style every 15 s
-        sIdx = (sIdx + 1) % STYLE_DEFS.length;
-        setActiveStyleIdx(sIdx);
-        rIdx = 0;
-      }
-      setRotationIdx(rIdx);
-      buildGrid(sIdx, rIdx);
-    }, 2500);
+      idx = (idx + 1) % SHOWCASES.length;
+      setActiveIdx(idx);
+      buildGrid(idx);
+    }, 5000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleStyleClick = (idx: number) => {
-    setActiveStyleIdx(idx);
-    setRotationIdx(0);
-    buildGrid(idx, 0);
+  const handleChipClick = (idx: number) => {
+    setActiveIdx(idx);
+    buildGrid(idx);
   };
 
-  const rotations    = getRotations(activeStyleIdx);
-  const currentLabel = rotations[rotationIdx % rotations.length]?.label ?? "";
+  const showcase = SHOWCASES[activeIdx];
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Active label row */}
+
+      {/* Header label */}
       <div className="flex items-center justify-center gap-3">
         <span className="text-xs font-bold text-[#C2683A] uppercase tracking-widest">
-          {STYLE_DEFS[activeStyleIdx].label}
+          {showcase.label}
         </span>
         <span className="text-xs text-[#D6D3D1]">·</span>
-        <span className="text-xs text-[#78716C]">{currentLabel}</span>
+        <span className="text-xs text-[#78716C]">{showcase.sublabel}</span>
       </div>
 
-      {/* 13 × 11 — odd dims for symmetric framing, landscape ratio */}
+      {/* Pattern grid — fixed 15×15 square aspect ratio */}
       <div
         className="rounded-2xl overflow-hidden shadow-2xl border border-black/5"
         style={{ aspectRatio: `${COLS} / ${ROWS}` }}
@@ -267,7 +324,6 @@ export default function PatchworkPreview() {
             display: "grid",
             gridTemplateColumns: `repeat(${COLS}, 1fr)`,
             gridTemplateRows:    `repeat(${ROWS}, 1fr)`,
-            // ← gap and padding removed; squares touch directly
           }}
         >
           {grid.map((color, i) => (
@@ -284,25 +340,31 @@ export default function PatchworkPreview() {
         </div>
       </div>
 
-      {/* Style selector chips */}
+      {/* Showcase selector chips */}
       <div className="flex flex-wrap gap-2 justify-center">
-        {STYLE_DEFS.map((s, idx) => (
+        {SHOWCASES.map((s, idx) => (
           <button
             key={s.key}
-            onClick={() => handleStyleClick(idx)}
+            onClick={() => handleChipClick(idx)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              activeStyleIdx === idx
+              activeIdx === idx
                 ? "bg-[#1C1917] text-white"
                 : "bg-white text-[#78716C] border border-[#E7E5E4] hover:border-[#C2683A] hover:text-[#C2683A]"
             }`}
           >
-            {s.label}
+            {s.chipLabel}
           </button>
         ))}
       </div>
 
-      <p className="text-center text-xs text-[#A8A29E] italic">
-        More styles coming soon
+      <p className="text-center text-xs text-[#A8A29E]">
+        Try it yourself →{" "}
+        <a
+          href="/studio"
+          className="text-[#C2683A] underline underline-offset-2 hover:text-[#9A4F28] transition-colors"
+        >
+          Open the studio
+        </a>
       </p>
     </div>
   );
