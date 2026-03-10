@@ -204,23 +204,23 @@ function StylesShowcase() {
 const STEPS = [
   {
     num: "01",
-    title: "Pick a mood & style",
-    desc: "Choose from moods like Cozy Warm or Bold & Dramatic, and styles like Scandinavian, Americana, or Scrappy. Patchwork generates a unique pattern instantly.",
+    title: "Choose your block",
+    desc: "Pick from 9 classic patchwork blocks — 9-Patch X, Granny Square, Gingham Rich, and more. Select a color palette and watch your pattern come to life instantly.",
   },
   {
     num: "02",
-    title: "Make it yours",
-    desc: "Swap in colors from Kona, Bella, or your own fabric stash. Change the square size, adjust the grid, and watch your quilt come to life in real time.",
+    title: "Play with color and scale",
+    desc: "Browse 12 curated palettes or the full Kona Cotton library. Tweak grid size, square size, and variations like scrappy, ombré, or rainbow — all in real time.",
   },
   {
     num: "03",
-    title: "Plan the whole quilt",
-    desc: "Add borders, choose your backing (wideback or pieced), and select your binding fabric. See full yardage and WOF strip requirements automatically calculated.",
+    title: "Fine-tune the details",
+    desc: "Click any square to change its color. Add a secondary block, dial in sashing, or switch to paint mode to brush colors freely across the grid.",
   },
   {
     num: "04",
-    title: "Cut with confidence",
-    desc: "Export a print-ready PDF with your complete pattern, cutting guide, and fabric breakdown. Walk to your cutting mat knowing exactly what to do.",
+    title: "Save and export",
+    desc: "Save your favorite patterns to your personal library. Export a print-ready PDF with your cutting guide and fabric requirements — ready for your cutting mat.",
   },
 ];
 
@@ -234,16 +234,11 @@ function HowItWorks() {
           </h2>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {STEPS.map((s, i) => (
-            <div key={s.num} className="relative">
-              {i < STEPS.length - 1 && (
-                <div className="hidden lg:block absolute top-6 left-full w-full h-px bg-[#E7E5E4] z-0" />
-              )}
-              <div className="relative z-10">
-                <div className="text-3xl font-bold text-[#E7E5E4] mb-3">{s.num}</div>
-                <h3 className="font-semibold text-[#1C1917] mb-2">{s.title}</h3>
-                <p className="text-[#78716C] text-sm leading-relaxed">{s.desc}</p>
-              </div>
+          {STEPS.map((s) => (
+            <div key={s.num}>
+              <div className="text-3xl font-bold text-[#E7E5E4] mb-3">{s.num}</div>
+              <h3 className="font-semibold text-[#1C1917] mb-2">{s.title}</h3>
+              <p className="text-[#78716C] text-sm leading-relaxed">{s.desc}</p>
             </div>
           ))}
         </div>
