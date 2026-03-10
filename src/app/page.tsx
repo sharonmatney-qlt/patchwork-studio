@@ -12,7 +12,7 @@ import {
   Check,
   Scissors,
   Palette,
-  Grid3X3,
+  LayoutGrid,
 } from "lucide-react";
 import PatchworkPreview from "@/components/patchwork-preview";
 
@@ -92,6 +92,12 @@ function Hero() {
 // ─── Features ───────────────────────────────────────────────────────────────
 const FEATURES = [
   {
+    icon: LayoutGrid,
+    title: "Made for any project",
+    description:
+      "From full-size quilts to table runners, wall hangings, pixel quilts, placemats, tote bag panels, and stockings. Works beautifully with chain piecing, fussy cutting, and fusible grid interfacing — in any style, modern or traditional.",
+  },
+  {
     icon: Sparkles,
     title: "Endless pattern generation",
     description:
@@ -99,21 +105,15 @@ const FEATURES = [
   },
   {
     icon: Palette,
-    title: "Design with your actual fabrics",
+    title: "Design with actual fabrics",
     description:
-      "Photograph your fabric stash and drop those exact colors into any pattern. Browse hundreds of solids from Kona, Bella, Art Gallery, Confetti Cotton, and Ruby Star Society.",
+      "Photograph your fabric stash and drop those exact colors into any pattern. Browse hundreds of solids from Kona, Art Gallery, and more.",
   },
   {
     icon: Scissors,
     title: "Cut with confidence",
     description:
-      "Tell us your square size — 5\" charm, 2.5\" mini, 10\" layer cake, fat quarters, jelly rolls, or custom — and get a precise cutting guide with WOF strips and yardage for every fabric.",
-  },
-  {
-    icon: Grid3X3,
-    title: "Plan the whole quilt",
-    description:
-      "Design your quilt top, then add borders, backing (including wideback options), and binding. See yardage requirements for every element before you touch your scissors.",
+      "Choose your square size and get a precise cutting guide with fabric requirements — perfect for charm squares, layer cakes, jelly rolls, and fat quarters.",
   },
   {
     icon: Layers,
@@ -125,7 +125,7 @@ const FEATURES = [
     icon: Download,
     title: "Export & print",
     description:
-      "Generate a beautiful, print-ready PDF with your complete pattern, cutting instructions, and yardage breakdown. Everything you need to walk to your cutting mat.",
+      "Generate a beautiful, print-ready PDF with your pattern, cutting guide with patch counts, and fabric requirements. Everything you need to walk to your cutting mat.",
   },
 ];
 
@@ -144,9 +144,9 @@ function Features() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {FEATURES.map((f) => (
-            <div key={f.title} className="group">
-              <div className="w-10 h-10 bg-[#F5E6DC] rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#C2683A] transition-colors">
-                <f.icon size={18} className="text-[#C2683A] group-hover:text-white transition-colors" />
+            <div key={f.title}>
+              <div className="w-10 h-10 bg-[#F5E6DC] rounded-xl flex items-center justify-center mb-4">
+                <f.icon size={18} className="text-[#C2683A]" />
               </div>
               <h3 className="font-semibold text-[#1C1917] mb-2">{f.title}</h3>
               <p className="text-[#78716C] text-sm leading-relaxed">{f.description}</p>
