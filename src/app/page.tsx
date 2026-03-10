@@ -160,9 +160,9 @@ function Features() {
 
 // ─── Styles showcase ─────────────────────────────────────────────────────────
 const STYLES = [
-  "Checkered","Gingham","Plaid / Tartan","Scrappy","Granny Square",
-  "Pixel Art","Ombré / Gradient","Diagonal","Medallion","Striped",
-  "Log Cabin","Concentric Squares","Pinwheel-Free","Diamonds",
+  "Gingham Classic", "Scrappy", "9-Patch X", "Ombré",
+  "Granny Square", "4-Patch", "Low Volume", "9-Patch O",
+  "Gingham Rich", "Rainbow", "16-Patch", "9-Patch +", "25-Patch",
 ];
 
 function StylesShowcase() {
@@ -183,14 +183,17 @@ function StylesShowcase() {
           {STYLES.map((s) => (
             <span
               key={s}
-              className="px-4 py-2 bg-white border border-[#E7E5E4] rounded-full text-sm text-[#78716C] font-medium hover:border-[#C2683A] hover:text-[#C2683A] transition-colors cursor-default"
+              className="px-4 py-2 bg-white border border-[#E7E5E4] rounded-full text-sm text-[#78716C] font-medium"
             >
               {s}
             </span>
           ))}
-          <span className="px-4 py-2 bg-[#F5E6DC] border border-[#C2683A] rounded-full text-sm text-[#C2683A] font-medium">
+          <Link
+            href="/studio"
+            className="px-4 py-2 bg-[#F5E6DC] border border-[#C2683A] rounded-full text-sm text-[#C2683A] font-medium hover:bg-[#C2683A] hover:text-white transition-colors cursor-pointer"
+          >
             + so much more…
-          </span>
+          </Link>
         </div>
       </div>
     </section>
