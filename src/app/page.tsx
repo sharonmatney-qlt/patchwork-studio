@@ -205,7 +205,7 @@ const STEPS = [
   {
     num: "01",
     title: "Choose your block",
-    desc: "Pick from 9 classic patchwork blocks — 9-Patch X, Granny Square, Gingham Rich, and more. Select a color palette and watch your pattern come to life instantly.",
+    desc: "Pick from classic patchwork blocks — 9-Patch, Granny Square, Gingham, and more. Select a color palette and watch your pattern come to life instantly.",
   },
   {
     num: "02",
