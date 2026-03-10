@@ -19,6 +19,24 @@ function shadeLight(hex: string, amount = 0.45): string {
   const [r,g,b] = hexToRgb(hex);
   return rgbToHex(r+(255-r)*amount, g+(255-g)*amount, b+(255-b)*amount);
 }
+function contrastColor(hex: string): string {
+  const [r,g,b] = hexToRgb(hex);
+  const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+  return lum > 0.45 ? shadeDark(hex, 0.72) : shadeLight(hex, 0.78);
+}
+function scrappyNudge(hex: string, seed: number): string {
+  const [r,g,b] = hexToRgb(hex);
+  const rng = (s: number) => ((Math.sin(s*127.3+311.7)*43758.5453)%1+1)%1;
+  const amount = 0.08 + rng(seed)*0.14;
+  return rng(seed+1) > 0.5
+    ? rgbToHex(r*(1-amount), g*(1-amount), b*(1-amount))
+    : rgbToHex(r+(255-r)*amount, g+(255-g)*amount, b+(255-b)*amount);
+}
+function lowVolumeNudge(seed: number): string {
+  const p = ["#F5F0E8","#EDE8DF","#E8E0D4","#F0EAE0","#EBE5DA","#F2ECE4","#E5DDD0","#EFE8DC"];
+  const rng = (s: number) => ((Math.sin(s*311.7+127.1)*43758.5453)%1+1)%1;
+  return p[Math.floor(rng(seed)*p.length)];
+}
 
 // ─── Ombré & Rainbow wash utilities ──────────────────────────────────────────
 
@@ -58,15 +76,6 @@ function lerpColor(a: string, b: string, t: number): string {
   const h = (n: number) => Math.round(n).toString(16).padStart(2,"0");
   return `#${h(ar+(br-ar)*t)}${h(ag+(bg-ag)*t)}${h(ab+(bb-ab)*t)}`;
 }
-function scrappyNudge(hex: string, seed: number): string {
-  const [r,g,b] = hexToRgb(hex);
-  const rng = (s: number) => ((Math.sin(s*127.3+311.7)*43758.5453)%1+1)%1;
-  const amount = 0.08 + rng(seed)*0.14;
-  return rng(seed+1) > 0.5
-    ? rgbToHex(r*(1-amount), g*(1-amount), b*(1-amount))
-    : rgbToHex(r+(255-r)*amount, g+(255-g)*amount, b+(255-b)*amount);
-}
-
 function applyWash(
   base: string,
   col: number, row: number,
@@ -106,13 +115,36 @@ function resolveSlots(
   return out;
 }
 
+function resolveInverted(
+  rules: Record<string, ColorRule>,
+  freeColors: Record<string, string>
+): Record<string, string> {
+  const primaryFree = Object.values(freeColors)[0] ?? "#888888";
+  const hasNeutral  = Object.values(rules).some(r => r.type === "NEUTRAL");
+  const out: Record<string, string> = {};
+  if (hasNeutral) {
+    for (const [slot, rule] of Object.entries(rules)) {
+      if (rule.type === "NEUTRAL") out[slot] = primaryFree;
+      if (rule.type === "FREE")    out[slot] = NEUTRAL;
+    }
+  } else {
+    for (const [slot, rule] of Object.entries(rules)) {
+      if (rule.type === "FREE") out[slot] = contrastColor(primaryFree);
+    }
+  }
+  for (const [slot, rule] of Object.entries(rules)) {
+    if (rule.type === "SHADE_DARK")  out[slot] = shadeDark(out[rule.of]  ?? "#888888", rule.amount);
+    if (rule.type === "SHADE_LIGHT") out[slot] = shadeLight(out[rule.of] ?? "#888888", rule.amount);
+  }
+  return out;
+}
+
 // ─── Showcase definitions ─────────────────────────────────────────────────────
 
 interface ShowcaseDef {
   key:        string;
-  label:      string;   // shown in header
-  sublabel:   string;   // shown in header (wash + color)
-  chipLabel:  string;   // shown in selector chip (shorter)
+  label:      string;
+  sublabel:   string;
   tileW:      number;
   tileH:      number;
   grid:       string[];
@@ -121,80 +153,30 @@ interface ShowcaseDef {
   baseColor:  string;
   wash:       "solid" | "ombre" | "rainbow";
   scrappy?:   boolean;
+  lowVolume?: boolean;
+  secondary?: "neutral" | "contrast" | "inverted";
+  sashing?:   { color: "neutral" | "contrast" };
 }
 
 const COLS = 15;
 const ROWS = 15;
 
 const SHOWCASES: ShowcaseDef[] = [
-  // 1 — Granny Square · Ombré · Teal
+  // 1 — 9-Patch X · Sage · Neutral Secondary · Scrappy
   {
-    key: "granny-ombre",
-    label: "Granny Square", sublabel: "Ombré · Teal", chipLabel: "Granny Ombré",
-    tileW: 5, tileH: 5,
-    grid: [
-      "D","D","C","D","D",
-      "D","C","B","C","D",
-      "C","B","A","B","C",
-      "D","C","B","C","D",
-      "D","D","C","D","D",
-    ],
-    colorRules: {
-      A: { type: "FREE" },
-      B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 },
-      C: { type: "SHADE_DARK",  of: "A", amount: 0.38 },
-      D: { type: "NEUTRAL" },
-    },
-    freeSlot: "A", baseColor: "#1B6B8A", wash: "ombre",
-  },
-
-  // 2 — 9-Patch X · Rainbow · Coral
-  {
-    key: "ninepatch-x-rainbow",
-    label: "9-Patch X", sublabel: "Rainbow · Coral", chipLabel: "9-Patch X",
+    key: "ninepatch-x-sage-scrappy",
+    label: "9-Patch X", sublabel: "Sage · Scrappy",
     tileW: 3, tileH: 3,
     grid: ["A","B","A","B","A","B","A","B","A"],
     colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
-    freeSlot: "A", baseColor: "#C2683A", wash: "rainbow",
+    freeSlot: "A", baseColor: "#4A6B4A",
+    secondary: "neutral", wash: "solid", scrappy: true,
   },
 
-  // 3 — Gingham Classic · Solid · Navy
+  // 2 — Granny Square · Terracotta · Neutral Secondary · Low Volume
   {
-    key: "gingham-classic",
-    label: "Gingham Classic", sublabel: "Solid · Navy", chipLabel: "Gingham",
-    tileW: 2, tileH: 2,
-    grid: ["A","B","B","C"],
-    colorRules: {
-      A: { type: "NEUTRAL" },
-      B: { type: "FREE" },
-      C: { type: "SHADE_DARK", of: "B", amount: 0.38 },
-    },
-    freeSlot: "B", baseColor: "#1C3A6B", wash: "solid",
-  },
-
-  // 4 — 25-Patch · Ombré · Berry
-  {
-    key: "twentyfive-ombre",
-    label: "25-Patch", sublabel: "Ombré · Berry", chipLabel: "25-Patch",
-    tileW: 5, tileH: 5,
-    grid: [
-      "A","B","A","B","A",
-      "B","A","B","A","B",
-      "A","B","A","B","A",
-      "B","A","B","A","B",
-      "A","B","A","B","A",
-    ],
-    colorRules: {
-      A: { type: "FREE" },
-      B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 },
-    },
-    freeSlot: "A", baseColor: "#6B2060", wash: "ombre",
-  },
-
-  // 5 — Granny Square · Rainbow · Indigo
-  {
-    key: "granny-rainbow",
-    label: "Granny Square", sublabel: "Rainbow · Indigo", chipLabel: "Granny Rainbow",
+    key: "granny-terracotta-lowvolume",
+    label: "Granny Square", sublabel: "Terracotta · Low Volume",
     tileW: 5, tileH: 5,
     grid: [
       "D","D","C","D","D",
@@ -209,36 +191,58 @@ const SHOWCASES: ShowcaseDef[] = [
       C: { type: "SHADE_DARK",  of: "A", amount: 0.38 },
       D: { type: "NEUTRAL" },
     },
-    freeSlot: "A", baseColor: "#3B2E8C", wash: "rainbow",
+    freeSlot: "A", baseColor: "#C2683A",
+    secondary: "neutral", wash: "solid", lowVolume: true,
   },
 
-  // 6 — 9-Patch + · Solid · Sage
+  // 3 — 4-Patch · Navy · Rainbow (no secondary)
   {
-    key: "ninepatch-plus",
-    label: "9-Patch +", sublabel: "Solid · Sage", chipLabel: "9-Patch +",
+    key: "fourpatch-navy-rainbow",
+    label: "4-Patch", sublabel: "Navy · Rainbow",
+    tileW: 2, tileH: 2,
+    grid: ["A","B","B","A"],
+    colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
+    freeSlot: "A", baseColor: "#1C3A6B",
+    wash: "rainbow",
+  },
+
+  // 4 — 9-Patch O · Navy · Contrast Secondary · Low Volume
+  {
+    key: "ninepatch-o-navy-contrast-lowvolume",
+    label: "9-Patch O", sublabel: "Navy · Contrast · Low Volume",
+    tileW: 3, tileH: 3,
+    grid: ["A","B","A","B","A","B","A","B","A"],
+    colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
+    freeSlot: "B", baseColor: "#1C3A6B",
+    secondary: "contrast", wash: "solid", lowVolume: true,
+  },
+
+  // 5 — Gingham Rich · Crimson (no secondary)
+  {
+    key: "gingham-rich-crimson",
+    label: "Gingham Rich", sublabel: "Crimson",
+    tileW: 2, tileH: 2,
+    grid: ["A","B","C","D"],
+    colorRules: {
+      A: { type: "NEUTRAL" },
+      B: { type: "FREE" },
+      C: { type: "SHADE_LIGHT", of: "B", amount: 0.45 },
+      D: { type: "SHADE_DARK",  of: "B", amount: 0.38 },
+    },
+    freeSlot: "B", baseColor: "#C41E3A",
+    wash: "solid",
+  },
+
+  // 6 — 9-Patch + · Rose · Inverted Secondary · Sashing Both Contrast
+  {
+    key: "ninepatch-plus-rose-inverted-sash",
+    label: "9-Patch +", sublabel: "Rose · Inverted · Sashing",
     tileW: 3, tileH: 3,
     grid: ["A","B","A","B","B","B","A","B","A"],
     colorRules: { A: { type: "NEUTRAL" }, B: { type: "FREE" } },
-    freeSlot: "B", baseColor: "#4A6B4A", wash: "solid",
-  },
-
-  // 7 — 25-Patch · Scrappy · Navy
-  {
-    key: "twentyfive-scrappy",
-    label: "25-Patch", sublabel: "Scrappy · Navy", chipLabel: "Scrappy",
-    tileW: 5, tileH: 5,
-    grid: [
-      "A","B","A","B","A",
-      "B","A","B","A","B",
-      "A","B","A","B","A",
-      "B","A","B","A","B",
-      "A","B","A","B","A",
-    ],
-    colorRules: {
-      A: { type: "FREE" },
-      B: { type: "SHADE_LIGHT", of: "A", amount: 0.45 },
-    },
-    freeSlot: "A", baseColor: "#1C3A6B", wash: "solid", scrappy: true,
+    freeSlot: "B", baseColor: "#B5467A",
+    secondary: "inverted", wash: "solid",
+    sashing: { color: "contrast" },
   },
 ];
 
@@ -247,20 +251,75 @@ const SHOWCASES: ShowcaseDef[] = [
 function generateShowcase(def: ShowcaseDef): string[] {
   const colors = { [def.freeSlot]: def.baseColor };
   const resolved = resolveSlots(def.colorRules, colors);
+  const primaryFree = def.baseColor;
+  const contrastFill = contrastColor(primaryFree);
+  const invertedResolved = def.secondary === "inverted"
+    ? resolveInverted(def.colorRules, colors)
+    : null;
+
+  // Sashing geometry: each group = tileW block cols + 1 sash col (when active)
+  const hasSash = !!def.sashing;
+  const groupW = hasSash ? def.tileW + 1 : def.tileW;
+  const groupH = hasSash ? def.tileH + 1 : def.tileH;
+  const sashColor = hasSash
+    ? (def.sashing!.color === "contrast" ? contrastFill : NEUTRAL)
+    : null;
+
   return Array.from({ length: COLS * ROWS }, (_, i) => {
     const row = Math.floor(i / COLS);
     const col = i % COLS;
-    const tileRow = row % def.tileH;
-    const tileCol = col % def.tileW;
-    const pos  = tileRow * def.tileW + tileCol;
-    const slot = def.grid[pos];
-    const rule = def.colorRules[slot];
-    const base = resolved[slot] ?? "#CCCCCC";
-    if (rule?.type === "FREE") {
-      const washed = applyWash(base, col, row, COLS, ROWS, def.wash);
-      return def.scrappy ? scrappyNudge(washed, i*7 + col*13 + row*31) : washed;
+
+    const posInGroupCol = col % groupW;
+    const posInGroupRow = row % groupH;
+
+    // Sashing strip — last slot of each group on either axis
+    if (sashColor !== null && (posInGroupCol === def.tileW || posInGroupRow === def.tileH)) {
+      return sashColor;
     }
-    return base;
+
+    const tileCol = posInGroupCol;
+    const tileRow = posInGroupRow;
+    const pos = tileRow * def.tileW + tileCol;
+
+    const blockCol = Math.floor(col / groupW);
+    const blockRow = Math.floor(row / groupH);
+    const isPrimary = !def.secondary || (blockCol + blockRow) % 2 === 0;
+
+    if (isPrimary) {
+      const slot = def.grid[pos];
+      const rule = def.colorRules[slot];
+      const base = resolved[slot] ?? "#CCCCCC";
+      if (rule?.type === "FREE") {
+        const washed = applyWash(base, col, row, COLS, ROWS, def.wash);
+        return def.scrappy ? scrappyNudge(washed, i*7 + col*13 + row*31) : washed;
+      }
+      if (def.lowVolume && rule?.type === "NEUTRAL") {
+        return lowVolumeNudge(i*11 + col*17 + row*23);
+      }
+      return base;
+    }
+
+    // Secondary block rendering
+    switch (def.secondary) {
+      case "neutral":
+        return def.lowVolume ? lowVolumeNudge(i*11 + col*17 + row*23) : NEUTRAL;
+      case "contrast":
+        return def.scrappy ? scrappyNudge(contrastFill, i*7 + col*13 + row*31) : contrastFill;
+      case "inverted": {
+        const slot = def.grid[pos];
+        const origRule = def.colorRules[slot];
+        const base = invertedResolved![slot] ?? "#CCCCCC";
+        if (origRule?.type === "NEUTRAL") {
+          const washed = applyWash(base, col, row, COLS, ROWS, def.wash);
+          return def.scrappy ? scrappyNudge(washed, i*7 + col*13 + row*31) : washed;
+        }
+        if (def.lowVolume && origRule?.type === "FREE") {
+          return lowVolumeNudge(i*11 + col*17 + row*23);
+        }
+        return base;
+      }
+      default: return resolved[def.grid[0]] ?? "#CCCCCC";
+    }
   });
 }
 
@@ -293,11 +352,6 @@ export default function PatchworkPreview() {
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const handleChipClick = (idx: number) => {
-    setActiveIdx(idx);
-    buildGrid(idx);
-  };
 
   const showcase = SHOWCASES[activeIdx];
 
@@ -338,23 +392,6 @@ export default function PatchworkPreview() {
             />
           ))}
         </div>
-      </div>
-
-      {/* Showcase selector chips */}
-      <div className="flex flex-wrap gap-2 justify-center">
-        {SHOWCASES.map((s, idx) => (
-          <button
-            key={s.key}
-            onClick={() => handleChipClick(idx)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              activeIdx === idx
-                ? "bg-[#1C1917] text-white"
-                : "bg-white text-[#78716C] border border-[#E7E5E4] hover:border-[#C2683A] hover:text-[#C2683A]"
-            }`}
-          >
-            {s.chipLabel}
-          </button>
-        ))}
       </div>
 
       <p className="text-center text-xs text-[#A8A29E]">
