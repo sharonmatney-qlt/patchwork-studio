@@ -171,11 +171,11 @@ function StylesShowcase() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl lg:text-4xl font-bold text-[#1C1917] tracking-tight mb-4">
-            The style is endless.
+            Endless fun.
           </h2>
           <p className="text-[#78716C] text-lg max-w-xl mx-auto">
             Patchwork celebrates the timeless art of squares-based design.
-            No triangles. No flying geese. Just classic, meditative patchwork — in every color and scale imaginable.
+            No triangles. No flying geese. No complicated piecing. Just classic, meditative patchwork.
           </p>
         </div>
 
