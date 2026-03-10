@@ -95,7 +95,7 @@ const FEATURES = [
     icon: LayoutGrid,
     title: "Made for any project",
     description:
-      "From full-size quilts to table runners, wall hangings, pixel quilts, placemats, tote bag panels, and stockings. Works beautifully with chain piecing, fussy cutting, and fusible grid interfacing — in any style, modern or traditional.",
+      "From full-size quilts to table runners, wall hangings, pixel quilts, placemats, and much more. Works beautifully with fussy cutting, chain piecing, and fusible grid interfacing — in any style.",
   },
   {
     icon: Sparkles,
