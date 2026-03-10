@@ -162,18 +162,7 @@ const COLS = 15;
 const ROWS = 15;
 
 const SHOWCASES: ShowcaseDef[] = [
-  // 1 — 9-Patch X · Sage · Neutral Secondary · Scrappy
-  {
-    key: "ninepatch-x-sage-scrappy",
-    label: "9-Patch X", sublabel: "Sage · Scrappy",
-    tileW: 3, tileH: 3,
-    grid: ["A","B","A","B","A","B","A","B","A"],
-    colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
-    freeSlot: "A", baseColor: "#4A6B4A",
-    secondary: "neutral", wash: "solid", scrappy: true,
-  },
-
-  // 2 — Granny Square · Terracotta · Neutral Secondary · Low Volume
+  // 1 — Granny Square · Terracotta · Neutral Secondary · Low Volume
   {
     key: "granny-terracotta-lowvolume",
     label: "Granny Square", sublabel: "Terracotta · Low Volume",
@@ -193,6 +182,17 @@ const SHOWCASES: ShowcaseDef[] = [
     },
     freeSlot: "A", baseColor: "#C2683A",
     secondary: "neutral", wash: "solid", lowVolume: true,
+  },
+
+  // 2 — 9-Patch X · Sage · Neutral Secondary · Scrappy
+  {
+    key: "ninepatch-x-sage-scrappy",
+    label: "9-Patch X", sublabel: "Sage · Scrappy",
+    tileW: 3, tileH: 3,
+    grid: ["A","B","A","B","A","B","A","B","A"],
+    colorRules: { A: { type: "FREE" }, B: { type: "NEUTRAL" } },
+    freeSlot: "A", baseColor: "#4A6B4A",
+    secondary: "neutral", wash: "solid", scrappy: true,
   },
 
   // 3 — 4-Patch · Navy · Rainbow (no secondary)
