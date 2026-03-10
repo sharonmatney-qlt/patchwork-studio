@@ -210,7 +210,7 @@ const STEPS = [
   {
     num: "02",
     title: "Play with color and scale",
-    desc: "Browse 12 curated palettes or the full Kona Cotton library. Tweak grid size, square size, and variations like scrappy, ombré, or rainbow — all in real time.",
+    desc: "Browse curated palettes or the full Kona Cotton library. Tweak grid size, square size, and variations like scrappy, ombré, or rainbow — all in real time.",
   },
   {
     num: "03",
