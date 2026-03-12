@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Shuffle, Download, Heart,
   RotateCcw, Sparkles, Info, Plus, Minus, ArrowLeft, Paintbrush, Undo2, Redo2,
+  LayoutDashboard, X,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -11,6 +13,8 @@ import {
   type BlockDef, type ColorRule, type SecondaryMode, type SashingConfig,
   type Palette, type KonaColor,
 } from "@/config/blocks";
+import { savePattern, getPattern } from "@/app/actions/patterns";
+import type { PatternSettings } from "@/lib/supabase";
 
 // ─── Color utilities ─────────────────────────────────────────────────────────
 
@@ -350,7 +354,11 @@ function generatePattern(
 
 // ─── Studio nav ───────────────────────────────────────────────────────────────
 
-function StudioNav() {
+function StudioNav({ onSave, justSaved, patternName }: {
+  onSave: () => void;
+  justSaved: boolean;
+  patternName: string;
+}) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FAFAF8]/95 backdrop-blur-md border-b border-[#E7E5E4]">
       <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -366,11 +374,25 @@ function StudioNav() {
             </span>
           </Link>
           <span className="text-[#D6D3D1] hidden sm:block">·</span>
-          <span className="text-sm text-[#78716C] hidden sm:block">Pattern Studio</span>
+          {patternName !== "Untitled Pattern" ? (
+            <span className="text-sm text-[#1C1917] font-medium hidden sm:block">{patternName}</span>
+          ) : (
+            <span className="text-sm text-[#78716C] hidden sm:block">Pattern Studio</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 text-sm text-[#78716C] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F4] transition-colors cursor-pointer">
-            <Heart size={14} /><span className="hidden sm:inline">Save</span>
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 text-sm text-[#78716C] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F4] transition-colors cursor-pointer"
+          >
+            <LayoutDashboard size={14} /><span className="hidden sm:inline">My Patterns</span>
+          </Link>
+          <button
+            onClick={onSave}
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors cursor-pointer border border-[#E7E5E4] hover:border-[#C2683A] hover:text-[#C2683A] text-[#78716C]"
+          >
+            <Heart size={14} className={justSaved ? "text-[#C2683A] fill-[#C2683A]" : ""} />
+            <span className="hidden sm:inline">{justSaved ? "Saved!" : "Save"}</span>
           </button>
           <button className="flex items-center gap-1.5 text-sm text-[#78716C] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F4] transition-colors cursor-pointer">
             <Download size={14} /><span className="hidden sm:inline">Export PDF</span>
@@ -386,7 +408,16 @@ function StudioNav() {
 
 // ─── Main studio component ────────────────────────────────────────────────────
 
+// Suspense wrapper required by Next.js because useSearchParams is used inside
 export default function StudioPage() {
+  return (
+    <Suspense>
+      <StudioContent />
+    </Suspense>
+  );
+}
+
+function StudioContent() {
   // ── Primary block + palette ──────────────────────────────────────────────
   const [activeBlockIdx, setActiveBlockIdx]     = useState(0);
   const [activePaletteIdx, setActivePaletteIdx] = useState(0);
@@ -417,9 +448,15 @@ export default function StudioPage() {
   const [primaryMode, setPrimaryMode]     = useState<"solid" | "ombre" | "rainbow">("solid");
   const [grid, setGrid]                   = useState<string[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [savedCount, setSavedCount]       = useState(0);
   const [justSaved, setJustSaved]         = useState(false);
   const generationSeed                    = useRef(0);
+
+  // ── Save / load ───────────────────────────────────────────────────────────
+  const [savedPatternId, setSavedPatternId] = useState<string | null>(null);
+  const [patternName, setPatternName]       = useState("Untitled Pattern");
+  const [showSaveModal, setShowSaveModal]   = useState(false);
+  const [isSaving, setIsSaving]             = useState(false);
+  const searchParams                        = useSearchParams();
 
   // ── Color picker ─────────────────────────────────────────────────────────
   const [selectedSquareIdx, setSelectedSquareIdx] = useState<number | null>(null);
@@ -491,6 +528,46 @@ export default function StudioPage() {
     const first = BLOCK_DEFS[0];
     buildGrid(0, 0, first.defaultCols, first.defaultRows, first.defaultSecondary, { layout: "none", color: "neutral" }, false, false, "solid", false);
   }, [buildGrid]);
+
+  // Load a saved pattern from ?pattern=<id>
+  useEffect(() => {
+    const patternId = searchParams.get("pattern");
+    if (!patternId) return;
+    getPattern(patternId).then((p) => {
+      if (!p) return;
+      const s = p.settings;
+      setSavedPatternId(p.id);
+      setPatternName(p.name);
+      setActiveBlockIdx(s.activeBlockIdx);
+      setActivePaletteIdx(s.activePaletteIdx);
+      setSecondaryMode(s.secondaryMode as SecondaryMode);
+      setSashing(s.sashing);
+      setIsCustomGrid(s.isCustomGrid);
+      if (s.activeGridIdx !== undefined) setActiveGridIdx(s.activeGridIdx);
+      if (s.customCols !== undefined) setCustomCols(s.customCols);
+      if (s.customRows !== undefined) setCustomRows(s.customRows);
+      setIsCustomSquare(s.isCustomSquare);
+      if (s.squarePresetIdx !== undefined) setSquarePresetIdx(s.squarePresetIdx);
+      if (s.customSquareStr !== undefined) setCustomSquareStr(s.customSquareStr);
+      setScrappy(s.scrappy);
+      setLowVolume(s.lowVolume);
+      setPrimaryMode(s.primaryMode);
+      const overrides: Record<number, string> = {};
+      Object.entries(s.squareOverrides).forEach(([k, v]) => { overrides[parseInt(k)] = v; });
+      setSquareOverrides(overrides);
+      overridesHistoryRef.current = [overrides];
+      historyIdxRef.current = 0;
+      setHistoryIdx(0);
+      const cols = s.isCustomGrid
+        ? (s.customCols ?? BLOCK_DEFS[s.activeBlockIdx].defaultCols)
+        : GRID_PRESETS[s.activeGridIdx ?? 1].cols;
+      const rows = s.isCustomGrid
+        ? (s.customRows ?? BLOCK_DEFS[s.activeBlockIdx].defaultRows)
+        : GRID_PRESETS[s.activeGridIdx ?? 1].rows;
+      buildGrid(s.activeBlockIdx, s.activePaletteIdx, cols, rows, s.secondaryMode as SecondaryMode, s.sashing as SashingConfig, s.scrappy, s.lowVolume, s.primaryMode, false);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleGenerate = () => {
@@ -613,9 +690,38 @@ export default function StudioPage() {
   };
 
   const handleSave = () => {
-    setSavedCount((c) => c + 1);
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 1500);
+    setShowSaveModal(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setIsSaving(true);
+    const settings: PatternSettings = {
+      activeBlockIdx,
+      activePaletteIdx,
+      secondaryMode,
+      sashing,
+      isCustomGrid,
+      activeGridIdx,
+      customCols,
+      customRows,
+      isCustomSquare,
+      squarePresetIdx,
+      customSquareStr,
+      scrappy,
+      lowVolume,
+      primaryMode,
+      squareOverrides: Object.fromEntries(
+        Object.entries(squareOverrides).map(([k, v]) => [String(k), v])
+      ),
+    };
+    const result = await savePattern(settings, patternName, savedPatternId ?? undefined);
+    setIsSaving(false);
+    if (!result.error) {
+      setSavedPatternId(result.id);
+      setShowSaveModal(false);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    }
   };
 
   const pushOverrides = (newOverrides: Record<number, string>) => {
@@ -699,7 +805,46 @@ export default function StudioPage() {
 
   return (
     <div className="bg-[#FAFAF8]" style={{ height: "100vh", overflow: "hidden" }}>
-      <StudioNav />
+      <StudioNav onSave={handleSave} justSaved={justSaved} patternName={patternName} />
+
+      {/* ── Save modal ────────────────────────────────────────────────────── */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-[#1C1917] text-base">Save pattern</h2>
+              <button onClick={() => setShowSaveModal(false)} className="text-[#78716C] hover:text-[#1C1917] transition-colors cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <label className="block text-sm text-[#78716C] mb-1.5">Pattern name</label>
+            <input
+              autoFocus
+              type="text"
+              value={patternName}
+              onChange={(e) => setPatternName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleConfirmSave(); }}
+              className="w-full border border-[#E7E5E4] rounded-xl px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#C2683A] transition-colors mb-4"
+              placeholder="e.g. Terracotta Granny Square"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="flex-1 border border-[#E7E5E4] text-sm text-[#78716C] py-2.5 rounded-xl hover:bg-[#F5F5F4] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSave}
+                disabled={isSaving}
+                className="flex-1 bg-[#C2683A] text-white text-sm font-medium py-2.5 rounded-xl hover:bg-[#9A4F28] transition-colors cursor-pointer disabled:opacity-60"
+              >
+                {isSaving ? "Saving…" : savedPatternId ? "Update" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="pt-14 flex flex-col lg:flex-row" style={{ height: "100vh" }}>
 
@@ -1074,14 +1219,8 @@ export default function StudioPage() {
                 }`}
               >
                 <Heart size={14} className={justSaved ? "fill-[#C2683A]" : ""} />
-                {justSaved ? "Saved!" : savedCount > 0 ? `Save pattern (${savedCount} saved)` : "Save pattern"}
+                {justSaved ? "Saved!" : savedPatternId ? "Update pattern" : "Save pattern"}
               </button>
-              {savedCount >= 20 && (
-                <p className="text-[10px] text-[#A8A29E] text-center mt-2">
-                  Free plan: 20 saved patterns max.{" "}
-                  <button className="text-[#C2683A] underline cursor-pointer">Upgrade to Maker</button>
-                </p>
-              )}
             </div>
 
           </div>
