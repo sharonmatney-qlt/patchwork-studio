@@ -4,7 +4,16 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
-import { Make, MakeStatus, MakeSteps, MAKE_STEP_LABELS } from '@/lib/supabase'
+import type { Make, MakeStatus, MakeSteps } from '@/lib/supabase'
+
+// Defined locally so supabase.ts (which creates the DB client) never gets bundled client-side
+const MAKE_STEP_LABELS: Record<string, string> = {
+  cut: 'Cut',
+  press: 'Press',
+  sew: 'Sew',
+  quilt: 'Quilt',
+  bind: 'Bind',
+}
 import { updateMakeStatus, updateMakeSteps, updateMakeName, deleteMake } from '@/app/actions/makes'
 
 const STATUS_ORDER: MakeStatus[] = ['planning', 'making', 'made']
