@@ -61,25 +61,25 @@ export interface MakeStep {
 }
 
 export interface MakeSteps {
-  cut: MakeStep
-  press: MakeStep
-  sew: MakeStep
+  cut:   MakeStep
+  piece: MakeStep
+  layer: MakeStep
   quilt: MakeStep
-  bind: MakeStep
+  bind:  MakeStep
 }
 
 export const MAKE_STEP_LABELS: Record<keyof MakeSteps, string> = {
-  cut: 'Cut',
-  press: 'Press',
-  sew: 'Sew',
+  cut:   'Cut',
+  piece: 'Piece',
+  layer: 'Layer',
   quilt: 'Quilt',
-  bind: 'Bind',
+  bind:  'Bind',
 }
 
 export const DEFAULT_MAKE_STEPS: MakeSteps = {
   cut:   { done: false, notes: '' },
-  press: { done: false, notes: '' },
-  sew:   { done: false, notes: '' },
+  piece: { done: false, notes: '' },
+  layer: { done: false, notes: '' },
   quilt: { done: false, notes: '' },
   bind:  { done: false, notes: '' },
 }
