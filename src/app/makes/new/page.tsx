@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Suspense } from 'react'
 import { Scissors } from 'lucide-react'
+import Nav from '@/components/nav'
 import { createMake } from '@/app/actions/makes'
 
 function NewMakeForm() {
@@ -29,7 +29,9 @@ function NewMakeForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <Nav />
+    <div className="flex items-center justify-center px-4" style={{ minHeight: 'calc(100vh - 64px)', marginTop: '64px' }}>
       <div className="bg-white rounded-2xl shadow-sm border border-[#E7E5E4] p-8 w-full max-w-sm">
         <div className="flex items-center justify-center w-12 h-12 bg-[#FDF0E8] rounded-2xl mb-5 mx-auto">
           <Scissors size={22} className="text-[#C2683A]" />
@@ -69,6 +71,7 @@ function NewMakeForm() {
           </button>
         </div>
       </div>
+    </div>
     </div>
   )
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-  Shuffle, Download, Bookmark,
+  Shuffle, Bookmark,
   RotateCcw, Sparkles, Info, Plus, Minus, ArrowLeft, Paintbrush, Undo2, Redo2,
   LayoutDashboard, X,
 } from "lucide-react";
@@ -394,9 +394,7 @@ function StudioNav({ onSave, justSaved, patternName }: {
             <Bookmark size={14} className={justSaved ? "text-[#C2683A] fill-[#C2683A]" : ""} />
             <span className="hidden sm:inline">{justSaved ? "Saved!" : "Save"}</span>
           </button>
-          <button className="flex items-center gap-1.5 text-sm text-[#78716C] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F4] transition-colors cursor-pointer">
-            <Download size={14} /><span className="hidden sm:inline">Export PDF</span>
-          </button>
+
           <button className="bg-[#C2683A] text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-[#9A4F28] transition-colors cursor-pointer flex items-center gap-1.5">
             <Sparkles size={13} /><span>Upgrade</span>
           </button>

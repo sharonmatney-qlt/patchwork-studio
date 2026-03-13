@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import Nav from '@/components/nav'
 import { getUserMakes } from '@/app/actions/makes'
 import { Make, MakeStatus } from '@/lib/supabase'
 import { Clock, Scissors, ChevronRight } from 'lucide-react'
@@ -100,18 +101,19 @@ export default async function MakesPage() {
   const makes = await getUserMakes()
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] pt-24 pb-16">
-      <div className="max-w-4xl mx-auto px-6">
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <Nav />
+      <div className="pt-24 pb-16 max-w-4xl mx-auto px-6">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-semibold text-[#1C1917]">My Makes</h1>
             <p className="text-sm text-[#78716C] mt-1">Track your quilts from Planning to Made</p>
           </div>
           <Link
-            href="/dashboard"
-            className="text-sm text-[#78716C] border border-[#E7E5E4] px-4 py-2 rounded-xl hover:bg-[#F5F5F4] transition-colors"
+            href="/studio"
+            className="bg-[#C2683A] text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-[#9A4F28] transition-colors"
           >
-            My Patterns
+            + New Pattern
           </Link>
         </div>
 

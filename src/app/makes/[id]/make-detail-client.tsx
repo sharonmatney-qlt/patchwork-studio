@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import Nav from '@/components/nav'
 import type { Make, MakeStatus, MakeSteps } from '@/lib/supabase'
 
 // Defined locally so supabase.ts (which creates the DB client) never gets bundled client-side
@@ -91,8 +92,9 @@ export default function MakeDetailClient({ make }: { make: Make }) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] pt-24 pb-16">
-      <div className="max-w-2xl mx-auto px-6">
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <Nav />
+      <div className="pt-24 pb-16 max-w-2xl mx-auto px-6">
 
         {/* Back link */}
         <Link
