@@ -91,7 +91,7 @@ function PatternCard({
           </button>
         </div>
         <Link
-          href={`/makes/new?pattern=${pattern.id}`}
+          href={`/makes/new?pattern=${pattern.id}&name=${encodeURIComponent(pattern.name)}`}
           className="w-full flex items-center justify-center gap-1.5 border border-[#E7E5E4] text-[#78716C] text-xs font-medium py-2 rounded-lg hover:bg-[#F5F5F4] hover:border-[#D6D3D1] transition-colors"
         >
           <Scissors size={12} />

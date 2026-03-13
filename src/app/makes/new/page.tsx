@@ -10,8 +10,9 @@ function NewMakeForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const patternId = searchParams.get('pattern')
+  const patternName = searchParams.get('name') ?? 'My Quilt'
 
-  const [name, setName] = useState('My Quilt')
+  const [name, setName] = useState(patternName)
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

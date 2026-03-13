@@ -536,7 +536,7 @@ function StudioContent() {
                 Not yet
               </button>
               <button
-                onClick={() => router.push(`/makes/new?pattern=${savedPatternId}`)}
+                onClick={() => router.push(`/makes/new?pattern=${savedPatternId}&name=${encodeURIComponent(patternName)}`)}
                 className="flex-1 bg-[#C2683A] text-white text-sm font-medium py-2.5 rounded-xl hover:bg-[#9A4F28] transition-colors cursor-pointer"
               >
                 Start a Make
