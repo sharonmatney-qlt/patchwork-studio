@@ -3,7 +3,24 @@
     "allow": [
       "mcp__Claude_Preview__preview_start",
       "Bash(open http://localhost:3000)",
-      "WebFetch(domain:www.pinterest.com)"
+      "WebFetch(domain:www.pinterest.com)",
+      "Bash(export PATH=\"/Users/sharonmatney/.nvm/versions/node/v20.20.1/bin:/Users/sharonmatney/bin:$PATH\")",
+      "Bash(git -C /Users/sharonmatney/local-git/patchwork add src/app/studio/ src/app/page.tsx .claude/launch.json start-dev.sh)",
+      "Bash(git -C:*)",
+      "Bash(git push origin main)",
+      "Bash(git add src/app/studio/page.tsx)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(node -e \"const l = require\\(''/Users/sharonmatney/local-git/patchwork/node_modules/lucide-react''\\); console.log\\([''Undo2'',''Redo2'',''Undo'',''Redo''].filter\\(n => n in l\\).join\\('', ''\\)\\)\")",
+      "Bash(git add src/config/blocks.ts)",
+      "Bash(git add src/components/patchwork-preview.tsx)",
+      "Bash(git add src/app/page.tsx)",
+      "Bash(layer cakes, jelly rolls, and fat quarters — or whatever 's in your stash.\":*)",
+      "Bash(npm install @clerk/nextjs)",
+      "Bash(PATH=\"/Users/sharonmatney/.nvm/versions/node/v20.20.1/bin:$PATH\" npm install @clerk/nextjs)",
+      "Bash(grep -r \"SignedIn\\\\|SignedOut\" /Users/sharonmatney/local-git/patchwork/node_modules/@clerk/react/dist/types/*.d.ts)",
+      "Bash(PATH=\"/Users/sharonmatney/.nvm/versions/node/v20.20.1/bin:$PATH\" npm run build)",
+      "Bash(git add -A)"
     ]
   }
 }

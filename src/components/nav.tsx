@@ -60,6 +60,12 @@ export default function Nav() {
             >
               My Patterns
             </Link>
+            <Link
+              href="/makes"
+              className="text-sm text-[#78716C] hover:text-[#1C1917] transition-colors px-3 py-1.5"
+            >
+              My Makes
+            </Link>
             <UserButton
               appearance={{
                 elements: {

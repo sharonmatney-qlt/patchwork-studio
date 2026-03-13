@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
-  Shuffle, Download, Heart,
+  Shuffle, Download, Bookmark,
   RotateCcw, Sparkles, Info, Plus, Minus, ArrowLeft, Paintbrush, Undo2, Redo2,
   LayoutDashboard, X,
 } from "lucide-react";
@@ -391,7 +391,7 @@ function StudioNav({ onSave, justSaved, patternName }: {
             onClick={onSave}
             className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors cursor-pointer border border-[#E7E5E4] hover:border-[#C2683A] hover:text-[#C2683A] text-[#78716C]"
           >
-            <Heart size={14} className={justSaved ? "text-[#C2683A] fill-[#C2683A]" : ""} />
+            <Bookmark size={14} className={justSaved ? "text-[#C2683A] fill-[#C2683A]" : ""} />
             <span className="hidden sm:inline">{justSaved ? "Saved!" : "Save"}</span>
           </button>
           <button className="flex items-center gap-1.5 text-sm text-[#78716C] px-3 py-1.5 rounded-lg hover:bg-[#F5F5F4] transition-colors cursor-pointer">
@@ -454,9 +454,11 @@ function StudioContent() {
   // ── Save / load ───────────────────────────────────────────────────────────
   const [savedPatternId, setSavedPatternId] = useState<string | null>(null);
   const [patternName, setPatternName]       = useState("Untitled Pattern");
-  const [showSaveModal, setShowSaveModal]   = useState(false);
-  const [isSaving, setIsSaving]             = useState(false);
+  const [showSaveModal, setShowSaveModal]       = useState(false);
+  const [isSaving, setIsSaving]                 = useState(false);
+  const [showStartMakePrompt, setShowStartMakePrompt] = useState(false);
   const searchParams                        = useSearchParams();
+  const router                              = useRouter();
 
   // ── Color picker ─────────────────────────────────────────────────────────
   const [selectedSquareIdx, setSelectedSquareIdx] = useState<number | null>(null);
@@ -717,10 +719,17 @@ function StudioContent() {
     const result = await savePattern(settings, patternName, savedPatternId ?? undefined);
     setIsSaving(false);
     if (!result.error) {
+      const isNew = !savedPatternId;
       setSavedPatternId(result.id);
       setShowSaveModal(false);
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 2000);
+      if (isNew) setShowStartMakePrompt(true);
+    } else if (result.error === 'Not signed in') {
+      setShowSaveModal(false);
+      window.location.href = '/sign-in';
+    } else {
+      alert(`Save failed: ${result.error}`);
     }
   };
 
@@ -806,6 +815,31 @@ function StudioContent() {
   return (
     <div className="bg-[#FAFAF8]" style={{ height: "100vh", overflow: "hidden" }}>
       <StudioNav onSave={handleSave} justSaved={justSaved} patternName={patternName} />
+
+      {/* ── Start a Make prompt ───────────────────────────────────────────── */}
+      {showStartMakePrompt && savedPatternId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm text-center">
+            <div className="text-3xl mb-3">🧵</div>
+            <h2 className="font-semibold text-[#1C1917] text-base mb-2">Pattern saved!</h2>
+            <p className="text-sm text-[#78716C] mb-5">Ready to start making it? Track your progress from Planning to Made.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowStartMakePrompt(false)}
+                className="flex-1 border border-[#E7E5E4] text-sm text-[#78716C] py-2.5 rounded-xl hover:bg-[#F5F5F4] transition-colors cursor-pointer"
+              >
+                Not yet
+              </button>
+              <button
+                onClick={() => router.push(`/makes/new?pattern=${savedPatternId}`)}
+                className="flex-1 bg-[#C2683A] text-white text-sm font-medium py-2.5 rounded-xl hover:bg-[#9A4F28] transition-colors cursor-pointer"
+              >
+                Start a Make
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Save modal ────────────────────────────────────────────────────── */}
       {showSaveModal && (

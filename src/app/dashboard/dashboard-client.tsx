@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Trash2, ExternalLink, Clock } from 'lucide-react'
+import { Trash2, ExternalLink, Clock, Scissors } from 'lucide-react'
 import { SavedPattern } from '@/lib/supabase'
 import { deletePattern } from '@/app/actions/patterns'
 import { BLOCK_DEFS, PALETTES } from '@/config/blocks'
@@ -74,7 +74,7 @@ function PatternCard({
           <span>{updatedAt}</span>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 mb-2">
           <Link
             href={`/studio?pattern=${pattern.id}`}
             className="flex-1 flex items-center justify-center gap-1.5 bg-[#C2683A] text-white text-xs font-medium py-2 rounded-lg hover:bg-[#9A4F28] transition-colors"
@@ -90,6 +90,13 @@ function PatternCard({
             <Trash2 size={14} />
           </button>
         </div>
+        <Link
+          href={`/makes/new?pattern=${pattern.id}`}
+          className="w-full flex items-center justify-center gap-1.5 border border-[#E7E5E4] text-[#78716C] text-xs font-medium py-2 rounded-lg hover:bg-[#F5F5F4] hover:border-[#D6D3D1] transition-colors"
+        >
+          <Scissors size={12} />
+          Start a Make
+        </Link>
       </div>
     </div>
   )
