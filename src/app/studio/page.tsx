@@ -1252,7 +1252,7 @@ function StudioContent() {
                     : "border-[#E7E5E4] text-[#78716C] hover:border-[#C2683A] hover:text-[#C2683A]"
                 }`}
               >
-                <Heart size={14} className={justSaved ? "fill-[#C2683A]" : ""} />
+                <Bookmark size={14} className={justSaved ? "fill-[#C2683A]" : ""} />
                 {justSaved ? "Saved!" : savedPatternId ? "Update pattern" : "Save pattern"}
               </button>
             </div>
