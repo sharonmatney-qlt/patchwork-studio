@@ -49,7 +49,8 @@ export default function MakeDetailClient({ make }: { make: Make }) {
   const [isSaving, setIsSaving]           = useState(false)
   const [isDeleting, setIsDeleting]       = useState(false)
 
-  const stepKeys  = Object.keys(steps) as Array<keyof MakeSteps>
+  // Explicit order — Object.keys() on JSONB from DB doesn't guarantee order
+  const stepKeys: Array<keyof MakeSteps> = ['cut', 'piece', 'layer', 'quilt', 'bind']
   const doneCount = stepKeys.filter(k => steps[k].done).length
   const progress  = Math.round((doneCount / stepKeys.length) * 100)
   const currentStatusIdx = STATUS_ORDER.indexOf(status)
