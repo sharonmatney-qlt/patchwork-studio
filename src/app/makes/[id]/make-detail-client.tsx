@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import Nav from '@/components/nav'
 import PatternPreview from '@/components/pattern-preview'
-import type { Make, MakeStatus, MakeSteps } from '@/lib/supabase'
+import StepPhotos from '@/components/step-photos'
+import type { Make, MakeStatus, MakeSteps, MakePhoto } from '@/lib/supabase'
 import { computePatternColors, computeFabricCounts } from '@/lib/pattern-utils'
 import { updateMakeStatus, updateMakeSteps, updateMakeName, deleteMake } from '@/app/actions/makes'
 
@@ -39,7 +40,7 @@ const STATUS_COLORS: Record<MakeStatus, string> = {
   made:     'bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]',
 }
 
-export default function MakeDetailClient({ make }: { make: Make }) {
+export default function MakeDetailClient({ make, initialPhotos }: { make: Make; initialPhotos: MakePhoto[] }) {
   const router = useRouter()
   const [name, setName]                   = useState(make.name)
   const [isEditingName, setIsEditingName] = useState(false)
@@ -48,6 +49,11 @@ export default function MakeDetailClient({ make }: { make: Make }) {
   const [expandedStep, setExpandedStep]   = useState<keyof MakeSteps | null>(null)
   const [isSaving, setIsSaving]           = useState(false)
   const [isDeleting, setIsDeleting]       = useState(false)
+  const [photos, setPhotos]               = useState<MakePhoto[]>(initialPhotos)
+
+  // Per-step photo helpers — keep in sync as uploads/deletes happen
+  const stepPhotos = (key: string) => photos.filter(p => p.step === key)
+  const stepPhotoCount = (key: string) => photos.filter(p => p.step === key).length
 
   // Explicit order — Object.keys() on JSONB from DB doesn't guarantee order
   const stepKeys: Array<keyof MakeSteps> = ['cut', 'piece', 'layer', 'quilt', 'bind']
@@ -334,6 +340,11 @@ export default function MakeDetailClient({ make }: { make: Make }) {
                         {step.notes && (
                           <span className="text-[10px] bg-[#FDF0E8] text-[#C2683A] px-1.5 py-0.5 rounded-full">note</span>
                         )}
+                        {stepPhotoCount(String(key)) > 0 && (
+                          <span className="text-[10px] bg-[#F0F9FF] text-[#0284C7] px-1.5 py-0.5 rounded-full">
+                            {stepPhotoCount(String(key))} 📷
+                          </span>
+                        )}
                         <button
                           onClick={() => setExpandedStep(isExpanded ? null : key)}
                           className="text-[#A8A29E] hover:text-[#78716C] transition-colors cursor-pointer"
@@ -356,7 +367,16 @@ export default function MakeDetailClient({ make }: { make: Make }) {
                           rows={3}
                           className="w-full border border-[#E7E5E4] rounded-xl px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#C2683A] transition-colors resize-none placeholder:text-[#C4BFB9]"
                         />
-                        <p className="text-xs text-[#A8A29E] mt-1">Notes save automatically</p>
+                        <p className="text-xs text-[#A8A29E] mt-1 mb-3">Notes save automatically</p>
+
+                        {/* Step photos */}
+                        <StepPhotos
+                          makeId={make.id}
+                          step={String(key)}
+                          initialPhotos={stepPhotos(String(key))}
+                          onAdd={photo => setPhotos(prev => [...prev, photo])}
+                          onRemove={id => setPhotos(prev => prev.filter(p => p.id !== id))}
+                        />
                       </div>
                     )}
                   </div>

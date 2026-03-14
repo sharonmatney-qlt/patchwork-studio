@@ -84,6 +84,17 @@ export const DEFAULT_MAKE_STEPS: MakeSteps = {
   bind:  { done: false, notes: '' },
 }
 
+// ── Make Photos ────────────────────────────────────────────────────────────
+
+export interface MakePhoto {
+  id: string
+  make_id: string
+  step: string
+  storage_path: string
+  url: string           // public URL, computed server-side
+  created_at: string
+}
+
 export interface Make {
   id: string
   user_id: string
