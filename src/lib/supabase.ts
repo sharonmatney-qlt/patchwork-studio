@@ -84,6 +84,39 @@ export const DEFAULT_MAKE_STEPS: MakeSteps = {
   bind:  { done: false, notes: '' },
 }
 
+// ── Profiles (synced from Clerk via webhook) ───────────────────────────────
+
+export interface Profile {
+  user_id: string
+  display_name: string | null
+  avatar_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ── Likes ──────────────────────────────────────────────────────────────────
+
+export interface Like {
+  id: string
+  user_id: string
+  target_id: string
+  target_type: 'pattern' | 'make'
+  created_at: string
+}
+
+// ── Make Step Comments ──────────────────────────────────────────────────────
+
+export interface MakeStepComment {
+  id: string
+  make_id: string
+  step: string
+  commenter_id: string
+  text: string
+  created_at: string
+  // joined from profiles when fetched
+  profile?: Pick<Profile, 'display_name' | 'avatar_url'>
+}
+
 // ── Make Photos ────────────────────────────────────────────────────────────
 
 export interface MakePhoto {

@@ -21,7 +21,12 @@
       "Bash(grep -r \"SignedIn\\\\|SignedOut\" /Users/sharonmatney/local-git/patchwork/node_modules/@clerk/react/dist/types/*.d.ts)",
       "Bash(PATH=\"/Users/sharonmatney/.nvm/versions/node/v20.20.1/bin:$PATH\" npm run build)",
       "Bash(git add -A)",
-      "Bash(git add src/app/makes/[id]/make-detail-client.tsx)"
+      "Bash(git add src/app/makes/[id]/make-detail-client.tsx)",
+      "Bash(ls /Users/sharonmatney/local-git/patchwork/src/app/makes/[id]/)",
+      "Bash(npm install svix)",
+      "Bash(source ~/.zshrc)",
+      "Bash(source ~/.nvm/nvm.sh)",
+      "Bash(nvm use 20)"
     ]
   }
 }

@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Trash2, ExternalLink, Clock, Scissors } from 'lucide-react'
-import { SavedPattern } from '@/lib/supabase'
-import { deletePattern } from '@/app/actions/patterns'
+import { Trash2, ExternalLink, Clock, Scissors, Globe, Lock } from 'lucide-react'
+import type { SavedPattern } from '@/lib/supabase'
+import { deletePattern, togglePatternPublic } from '@/app/actions/patterns'
 import { BLOCK_DEFS, PALETTES } from '@/config/blocks'
 
 export default function DashboardClient({ patterns }: { patterns: SavedPattern[] }) {
@@ -44,16 +44,25 @@ function PatternCard({
   onDelete: () => void
 }) {
   const s = pattern.settings
-  const block = BLOCK_DEFS[s.activeBlockIdx]
+  const block   = BLOCK_DEFS[s.activeBlockIdx]
   const palette = PALETTES[s.activePaletteIdx]
+  const [isPublic, setIsPublic]             = useState(pattern.is_public)
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false)
 
-  // Build a tiny color swatch from the palette's main colors
   const swatchColors = Object.values(palette.colors).slice(0, 8)
   const updatedAt = new Date(pattern.updated_at).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   })
+
+  const handleTogglePublic = async () => {
+    setIsTogglingPublic(true)
+    const next = !isPublic
+    setIsPublic(next)
+    await togglePatternPublic(pattern.id, next)
+    setIsTogglingPublic(false)
+  }
 
   return (
     <div className={`bg-white rounded-2xl border border-[#E7E5E4] overflow-hidden group transition-all hover:shadow-md hover:border-[#D6D3D1] ${isDeleting ? 'opacity-50' : ''}`}>
@@ -67,11 +76,28 @@ function PatternCard({
       {/* Card body */}
       <div className="p-4">
         <h3 className="font-semibold text-[#1C1917] text-sm mb-0.5 truncate">{pattern.name}</h3>
-        <p className="text-xs text-[#78716C] mb-3">{block.label}</p>
+        <p className="text-xs text-[#78716C] mb-1">{block.label}</p>
 
-        <div className="flex items-center gap-1.5 text-xs text-[#A8A29E] mb-4">
-          <Clock size={11} />
-          <span>{updatedAt}</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-1.5 text-xs text-[#A8A29E]">
+            <Clock size={11} />
+            <span>{updatedAt}</span>
+          </div>
+
+          {/* Share toggle */}
+          <button
+            onClick={handleTogglePublic}
+            disabled={isTogglingPublic}
+            title={isPublic ? 'Make private' : 'Share with community'}
+            className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors cursor-pointer disabled:opacity-50 ${
+              isPublic
+                ? 'bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]'
+                : 'border-[#E7E5E4] text-[#A8A29E] hover:border-[#D6D3D1]'
+            }`}
+          >
+            {isPublic ? <Globe size={9} /> : <Lock size={9} />}
+            {isPublic ? 'Public' : 'Private'}
+          </button>
         </div>
 
         <div className="flex gap-2 mb-2">

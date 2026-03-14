@@ -147,6 +147,27 @@ export async function deleteMake(id: string): Promise<{ error?: string }> {
   return {}
 }
 
+// ── Toggle make public/private ─────────────────────────────────────────────
+
+export async function toggleMakePublic(
+  id: string,
+  isPublic: boolean,
+): Promise<{ error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { error: 'Not signed in' }
+
+  const { error } = await supabase
+    .from('makes')
+    .update({ is_public: isPublic, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', userId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/explore')
+  revalidatePath(`/makes/${id}`)
+  return {}
+}
+
 // ── Make Photos ────────────────────────────────────────────────────────────
 
 function photoUrl(storagePath: string): string {

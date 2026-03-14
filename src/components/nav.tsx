@@ -29,7 +29,7 @@ export default function Nav() {
         <div className="hidden md:flex items-center gap-8">
           <a href="/#features" className="text-sm text-[#78716C] hover:text-[#1C1917] transition-colors">Features</a>
           <a href="/#pricing" className="text-sm text-[#78716C] hover:text-[#1C1917] transition-colors">Pricing</a>
-          <a href="/#gallery" className="text-sm text-[#78716C] hover:text-[#1C1917] transition-colors">Gallery</a>
+          <Link href="/explore" className="text-sm text-[#78716C] hover:text-[#1C1917] transition-colors">Explore</Link>
         </div>
 
         {/* Auth area */}

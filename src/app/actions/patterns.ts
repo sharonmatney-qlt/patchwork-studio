@@ -100,6 +100,27 @@ export async function updatePatternName(
   return {}
 }
 
+// ── Toggle pattern public/private ─────────────────────────────────────────
+
+export async function togglePatternPublic(
+  id: string,
+  isPublic: boolean,
+): Promise<{ error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { error: 'Not signed in' }
+
+  const { error } = await supabase
+    .from('patterns')
+    .update({ is_public: isPublic })
+    .eq('id', id)
+    .eq('user_id', userId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard')
+  revalidatePath('/explore')
+  return {}
+}
+
 // ── Delete a pattern ───────────────────────────────────────────────────────
 
 export async function deletePattern(id: string): Promise<{ error?: string }> {
