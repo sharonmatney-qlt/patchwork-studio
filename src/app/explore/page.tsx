@@ -132,15 +132,13 @@ function MakeCard({
           </div>
         </div>
 
-        <div onClick={e => e.preventDefault()}>
-          <LikeButton
-            targetId={make.id}
-            targetType="make"
-            initialCount={make.like_count}
-            initialLiked={liked}
-            isSignedIn={isSignedIn}
-          />
-        </div>
+        <LikeButton
+          targetId={make.id}
+          targetType="make"
+          initialCount={make.like_count}
+          initialLiked={liked}
+          isSignedIn={isSignedIn}
+        />
       </div>
     </Link>
   )
